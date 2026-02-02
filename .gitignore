@@ -120,3 +120,9 @@ test-temp/
 # CLI cache and output (user-specific)
 ~/.gh-cli-cache/
 ~/.gh-cli-output/
+
+# Analysis and test reports
+*REPORT*.md
+*SUMMARY*.md
+AUTOMATED_TESTING*.md
+COMMAND_RENAME.md
