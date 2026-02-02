@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Test coverage
 coverage/
@@ -118,8 +117,8 @@ gh-repo-cli-*/
 test-temp/
 
 # CLI cache and output (user-specific)
-~/.gh-cli-cache/
-~/.gh-cli-output/
+~/.ghr-cache/
+~/.ghr-output/
 
 # Analysis and test reports
 *REPORT*.md
