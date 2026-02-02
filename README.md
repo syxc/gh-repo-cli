@@ -46,7 +46,7 @@ ghr read facebook/react README.md
 
 This tool shines when combined with AI assistants. Here's how to use it with popular tools:
 
-##### 🤖 Claude Code Integration (Example)
+##### 🤖 Claude Code Integration (Best Practice)
 
 **Scenario**: You want to understand how React's `useState` hook works.
 
@@ -74,13 +74,81 @@ Here's the file content:
 [paste the output from gh read command]
 ```
 
+**Advanced: Automated Workflow with Claude Code**
+
+You can create a custom workflow to let Claude Code automatically use `ghr`:
+
+1. **Create a custom skill** in your Claude Code configuration:
+
+```json
+// ~/.claude/skills/github-repo-analyzer.json
+{
+  "name": "github-repo-analyzer",
+  "description": "Analyze GitHub repositories using ghr CLI",
+  "command": "ghr",
+  "args": {
+    "analyze": ["analyze", "{{repo}}", "-o", "{{output}}"],
+    "search": ["search", "{{repo}}", "{{query}}", "-o", "{{output}}"],
+    "read": ["read", "{{repo}}", "{{file}}"]
+  }
+}
+```
+
+2. **Use it in Claude Code**:
+```
+Please analyze the facebook/react repository using the github-repo-analyzer skill,
+then explain how useState is implemented.
+```
+
+3. **Claude Code will automatically**:
+   - Run `ghr analyze facebook/react`
+   - Parse the JSON output
+   - Search for `useState`
+   - Read relevant files
+   - Provide comprehensive analysis
+
 **Why This Works Better**:
 - ⚡ **No quota limits** - analyze as many repos as you want
 - 🔒 **Privacy** - code stays on your machine until you share it
 - 💰 **Cost-effective** - free vs paid MCP servers
 - 🎯 **Focused** - get exactly what you need, then ask AI specific questions
+- 🤖 **AI-native** - JSON output perfect for LLM parsing
 
-##### 🔄 Comparison: MCP Servers vs gh-repo-cli
+##### 🔄 Other AI Assistants
+
+**Cursor / Windsurf / Copilot**:
+```bash
+# 1. Analyze repo
+ghr analyze vuejs/core -o vue-analysis.json
+
+# 2. Ask AI with context
+"I'm working with the Vue.js core. Here's the repository structure:
+[copy vue-analysis.json]
+
+Can you explain the reactivity system?"
+```
+
+**GLM Coding Plan / ChatGPT**:
+```bash
+# Export repo info
+ghr analyze tensorflow/tensorflow -o tf.json
+ghr search tensorflow/tensorflow keras -e .py -o keras.json
+
+# Share with AI for analysis
+```
+
+##### 📊 MCP vs CLI Comparison
+
+| Feature | MCP Servers | gh-repo-cli + AI |
+|---------|-------------|-----------------|
+| **Usage Limits** | ❌ Often limited (100-500/month) | ✅ Unlimited |
+| **API Token** | ❌ Required | ✅ Not needed |
+| **Privacy** | ⚠️ Code goes through server | ✅ Local analysis |
+| **Cost** | 💰 Paid/Quota-limited | ✅ Free |
+| **Speed** | ⚠️ Network dependent | ⚡ Local cache |
+| **AI Integration** | ✅ Seamless | ✅ JSON/CLI |
+| **Flexibility** | ❌ Fixed format | ✅ Custom workflows |
+| **Offline** | ❌ Requires internet | ✅ Works with cached repos |
 
 | Feature | MCP Servers | gh-repo-cli |
 |---------|-------------|-------------|
@@ -214,6 +282,11 @@ rm -rf ~/.ghr-cache/
 ### Output Location
 
 Analysis results are saved in `~/.ghr-output/` when using the `-o` option.
+
+## 📖 Additional Documentation
+
+- 🤖 **[AI Integration Guide](AI_INTEGRATION_GUIDE.md)** - Complete guide on integrating gh-repo-cli with Claude Code, Cursor, and other AI assistants
+- 🚀 **[Release Workflow Guide](RELEASE_WORKFLOW.md)** - How to configure and trigger automated releases
 
 ## 🤝 Contributing
 

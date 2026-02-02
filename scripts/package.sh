@@ -3,7 +3,8 @@
 
 set -e
 
-VERSION="1.0.0"
+# Accept version as argument or use default
+VERSION="${1:-1.0.0}"
 PACKAGE_NAME="gh-repo-cli-v${VERSION}"
 # Use parent directory of script as output directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,12 +28,8 @@ rm -f scripts/package.sh
 cd "${OUTPUT_DIR}"
 zip -r "${PACKAGE_NAME}.zip" "${PACKAGE_NAME}" -q
 
-# Generate checksum
-shasum -a 256 "${PACKAGE_NAME}.zip" > "${PACKAGE_NAME}.zip.sha256"
-
 # Cleanup
 rm -rf "${PACKAGE_DIR}"
 
 echo "✅ Package created: ${PACKAGE_NAME}.zip"
-echo "📋 Checksum: $(cat ${PACKAGE_NAME}.zip.sha256)"
 echo "📊 Size: $(du -h ${PACKAGE_NAME}.zip | cut -f1)"
