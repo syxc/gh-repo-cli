@@ -44,11 +44,9 @@ ghr read facebook/react README.md
 
 #### 2. With AI Coding Assistants (Recommended!)
 
-This tool is designed to work seamlessly with AI coding assistants. **The best practice is to add simple instructions to your CLAUDE.md global configuration**, letting AI automatically detect when to use gh-repo-cli.
+**最佳实践**：将 gh-repo-cli 的使用规则添加到 `~/.claude/CLAUDE.md` 全局配置，让 AI 自动检测何时需要分析仓库。
 
-##### 🤖 Claude Code Integration (Best Practice)
-
-**One-Time Setup** - Add this to your `~/.claude/CLAUDE.md`:
+**一键配置** - 在 `~/.claude/CLAUDE.md` 中添加：
 
 ```markdown
 # GitHub 仓库分析优先级
@@ -58,12 +56,11 @@ GLM MCP (zread): 有限配额 ❌
 gh-repo-cli: 完全免费 ✅
 ```
 
-```
 触发规则（用户输入匹配 → 使用 gh-repo-cli）:
-github\.com/|github 仓库|分析.*仓库|仓库.*分析
-查看.*代码|阅读.*源码|clone.*github
-owner/repo 格式（如 facebook/react）
-```
+- github.com/ 链接
+- "github 仓库" | "分析.*仓库" | "仓库.*分析"
+- "查看.*代码" | "阅读.*源码" | "clone.*github"
+- owner/repo 格式（如 facebook/react）
 
 使用方式：
 ```bash
@@ -80,79 +77,57 @@ MCP 备用条件（仅在以下情况使用 zread MCP）:
 3. 用户明确要求使用 MCP
 ```
 
-**Now just ask questions naturally**:
+**配置后直接自然对话**：
 
 ```
-You: How does React implement hooks?
+You: "React 是如何实现 hooks 的？"
 
 Claude Code:
-$ ghr analyze facebook/react
-$ ghr search facebook/react "useState" -e .js
-$ ghr read facebook/react packages/react/src/ReactHooks.js
+  $ ghr analyze facebook/react
+  $ ghr search facebook/react "useState" -e .js
+  $ ghr read facebook/react packages/react/src/ReactHooks.js
 
-Based on my analysis, here's how React hooks are implemented...
+  基于仓库分析，React hooks 的实现方式是...
 ```
 
-**Why This Approach is Superior**:
-- ✅ **Zero configuration** - No skill files to create
-- ✅ **Automatic detection** - AI decides when to use gh-repo-cli
-- ✅ **Natural interaction** - Ask questions, don't give commands
-- ✅ **Smart fallback** - Automatically uses MCP for private repos
-- ✅ **Always active** - Works for all conversations
+**优势**：
+- ✅ **零配置** - 无需创建 skill 文件
+- ✅ **自动检测** - AI 决定何时使用 gh-repo-cli
+- ✅ **自然交互** - 用自然语言提问，无需手动调用命令
+- ✅ **智能降级** - 私有仓库时自动使用 MCP
+- ✅ **始终生效** - 所有对话都可用
 
-📖 **See [AI_INTEGRATION_GUIDE.md](AI_INTEGRATION_GUIDE.md)** for detailed examples, advanced workflows, and troubleshooting.
+📖 **完整指南**：[docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) - 详细示例、高级工作流和故障排查
 
 ##### 🔄 Other AI Assistants
 
 **Cursor / Windsurf / Copilot**:
 ```bash
-# Analyze repo in terminal
+# 在终端分析仓库
 ghr analyze vuejs/core -o vue-analysis.json
 
-# Reference output in AI chat
+# 在 AI 聊天中引用输出
 @vue-analysis.json Explain Vue's reactivity system
 ```
 
 **ChatGPT / Claude (Web)**:
 ```bash
-# Export repo data
+# 导出仓库数据
 ghr analyze tensorflow/tensorflow -o tf.json
 
-# Upload JSON file and ask questions
+# 上传 JSON 文件并提问
 ```
 
 ##### 📊 MCP vs CLI Comparison
 
-| Feature | MCP Servers | gh-repo-cli + AI |
-|---------|-------------|-----------------|
-| **Usage Limits** | ❌ Often limited (100-500/month) | ✅ Unlimited |
+| Feature | MCP Servers | gh-repo-cli |
+|---------|-------------|-------------|
+| **Usage Limits** | ❌ Often limited | ✅ Unlimited |
 | **Setup** | ⚠️ Configure tokens/servers | ✅ One CLAUDE.md snippet |
 | **Privacy** | ⚠️ Code goes through server | ✅ Local analysis |
 | **Cost** | 💰 Paid/Quota-limited | ✅ Free |
 | **Speed** | ⚠️ Network dependent | ⚡ Local cache |
 | **AI Detection** | ❌ Manual invocation | ✅ Automatic |
-
-##### 📊 MCP vs CLI Comparison
-
-| Feature | MCP Servers | gh-repo-cli + AI |
-|---------|-------------|-----------------|
-| **Usage Limits** | ❌ Often limited (100-500/month) | ✅ Unlimited |
-| **API Token** | ❌ Required | ✅ Not needed |
-| **Privacy** | ⚠️ Code goes through server | ✅ Local analysis |
-| **Cost** | 💰 Paid/Quota-limited | ✅ Free |
-| **Speed** | ⚠️ Network dependent | ⚡ Local cache |
-| **AI Integration** | ✅ Seamless | ✅ JSON/CLI |
-| **Flexibility** | ❌ Fixed format | ✅ Custom workflows |
-| **Offline** | ❌ Requires internet | ✅ Works with cached repos |
-
-| Feature | MCP Servers | gh-repo-cli |
-|---------|-------------|-------------|
-| **Usage Limits** | ❌ Often limited | ✅ Unlimited |
-| **API Token** | ❌ Required | ✅ Not needed |
-| **Privacy** | ⚠️ Code goes through server | ✅ Local analysis |
-| **Cost** | 💰 Paid/Quota-limited | ✅ Free |
-| **Speed** | ⚠️ Network dependent | ⚡ Local cache |
-| **AI Integration** | ✅ Seamless | ✅ Copy-paste/CLI |
 
 ## ✨ Features
 
@@ -280,8 +255,9 @@ Analysis results are saved in `~/.ghr-output/` when using the `-o` option.
 
 ## 📖 Additional Documentation
 
-- 🤖 **[AI Integration Guide](AI_INTEGRATION_GUIDE.md)** - Complete guide on integrating gh-repo-cli with Claude Code, Cursor, and other AI assistants
-- 🚀 **[Release Workflow Guide](RELEASE_WORKFLOW.md)** - How to configure and trigger automated releases
+- 🤖 **[AI Integration Guide](docs/AI_INTEGRATION.md)** - Claude Code 集成最佳实践
+- 🚀 **[Release Workflow Guide](docs/RELEASE_WORKFLOW.md)** - 自动发布配置指南
+- 🧪 **[Testing Guide](docs/TESTING.md)** - 测试指南
 
 ## 🤝 Contributing
 
