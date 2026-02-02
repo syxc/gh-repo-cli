@@ -3,6 +3,9 @@
 > A lightweight CLI tool for analyzing GitHub repositories without API tokens
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/node/v/gh-repo-cli)](https://github.com/syxc/gh-repo-cli)
+[![CI](https://github.com/syxc/gh-repo-cli/workflows/CI/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
+[![Code Quality](https://github.com/syxc/gh-repo-cli/workflows/Code%20Quality/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 
 Analyze, search, and explore GitHub repositories from your terminal - no API token required.
 
@@ -34,9 +37,9 @@ Many AI coding assistants (like GLM Coding Plan, Claude Code, Cursor, etc.) prov
 Use it directly in your terminal for quick repository analysis:
 
 ```bash
-gh analyze facebook/react
-gh search vuejs/core ref
-gh read facebook/react README.md
+ghr analyze facebook/react
+ghr search vuejs/core ref
+ghr read facebook/react README.md
 ```
 
 #### 2. With AI Coding Assistants (Recommended!)
@@ -49,17 +52,17 @@ This tool shines when combined with AI assistants. Here's how to use it with pop
 
 **Step 1**: Get repository structure
 ```bash
-gh structure facebook/react --depth 3
+ghr structure facebook/react --depth 3
 ```
 
 **Step 2**: Search for the implementation
 ```bash
-gh search facebook/react useState -e .js -o results.json
+ghr search facebook/react useState -e .js -o results.json
 ```
 
 **Step 3**: Read the relevant file
 ```bash
-gh read facebook/react packages/react/src/ReactHooks.js
+ghr read facebook/react packages/react/src/ReactHooks.js
 ```
 
 **Step 4**: Ask Claude Code
@@ -119,36 +122,36 @@ npm link
 
 ```bash
 # Analyze a repository
-gh analyze facebook/react
+ghr analyze facebook/react
 
 # Get directory structure
-gh structure vuejs/core
+ghr structure vuejs/core
 
 # Search for code patterns
-gh search facebook/react useState
+ghr search facebook/react useState
 
 # Read a specific file
-gh read facebook/react README.md
+ghr read facebook/react README.md
 
 # List files in a directory
-gh ls facebook/react/src
+ghr ls facebook/react/src
 
 # Clean cached repositories
-gh clean --all              # Clean all cached repos
-gh clean facebook/react     # Clean specific repo
+ghr clean --all              # Clean all cached repos
+ghr clean facebook/react     # Clean specific repo
 ```
 
 ### AI-Assisted Workflow (Recommended)
 
 ```bash
 # Step 1: Explore the repository
-gh structure facebook/react --depth 2
+ghr structure facebook/react --depth 2
 
 # Step 2: Search for specific patterns
-gh search facebook/react useEffect -e .js -o search_results.json
+ghr search facebook/react useEffect -e .js -o search_results.json
 
 # Step 3: Read relevant files
-gh read facebook/react packages/react/src/ReactHooks.js
+ghr read facebook/react packages/react/src/ReactHooks.js
 
 # Step 4: Share findings with your AI assistant
 # (Claude Code, Cursor, Copilot, etc.)
@@ -163,7 +166,7 @@ If you're behind a firewall or need to access GitHub through a proxy:
 export GH_PROXY="http://127.0.0.1:7890"
 
 # Or use per-command
-GH_PROXY="http://127.0.0.1:7890" gh analyze facebook/react
+GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react
 ```
 
 Supported proxy types:
@@ -175,19 +178,19 @@ Supported proxy types:
 
 ```bash
 # Save output to file (great for AI analysis!)
-gh analyze facebook/react -o output.json
+ghr analyze facebook/react -o output.json
 
 # Search with file extension filter
-gh search facebook/react useEffect -e .js
+ghr search facebook/react useEffect -e .js
 
 # Case-insensitive search
-gh search facebook/react types --ignore-case
+ghr search facebook/react types --ignore-case
 
 # Bypass cache and re-clone
-gh analyze facebook/react --no-cache
+ghr analyze facebook/react --no-cache
 
 # Get deeper directory structure
-gh structure facebook/react --depth 4
+ghr structure facebook/react --depth 4
 ```
 
 ## 🔧 Configuration
@@ -198,10 +201,10 @@ Repositories are cached in `~/.gh-cli-cache/`:
 
 ```bash
 # Clear cache for a specific repo (using CLI)
-gh clean facebook/react
+ghr clean facebook/react
 
 # Clear all cache (using CLI)
-gh clean --all
+ghr clean --all
 
 # Or manually
 rm -rf ~/.gh-cli-cache/facebook/react
