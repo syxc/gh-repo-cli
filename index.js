@@ -14,8 +14,8 @@ const { clean } = require('./commands/clean');
 
 // Configuration
 const CONFIG = {
-  cacheDir: path.join(os.homedir(), '.gh-cli-cache'),
-  outputDir: path.join(os.homedir(), '.gh-cli-output'),
+  cacheDir: path.join(os.homedir(), '.ghr-cache'),
+  outputDir: path.join(os.homedir(), '.ghr-output'),
   // Read proxy from environment variables
   proxy: process.env.GH_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null,
   // Read GitHub token from environment (optional, for higher rate limits)
@@ -23,7 +23,7 @@ const CONFIG = {
 };
 
 program
-  .name('gh')
+  .name('ghr')
   .description('CLI tool for analyzing GitHub repositories')
   .version('1.0.0');
 
