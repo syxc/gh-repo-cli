@@ -190,19 +190,19 @@ ghr structure facebook/react --depth 4
 
 ### 缓存位置
 
-仓库缓存在 `~/.gh-cli-cache/`：
+仓库缓存在 `~/.ghr-cache/`：
 
 ```bash
 # 清除特定仓库缓存
-rm -rf ~/.gh-cli-cache/facebook/react
+rm -rf ~/.ghr-cache/facebook/react
 
 # 清除所有缓存
-rm -rf ~/.gh-cli-cache/
+rm -rf ~/.ghr-cache/
 ```
 
 ### 输出位置
 
-使用 `-o` 选项时，分析结果保存在 `~/.gh-cli-output/`。
+使用 `-o` 选项时，分析结果保存在 `~/.ghr-output/`。
 
 ## 🤝 贡献
 

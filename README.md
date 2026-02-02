@@ -197,7 +197,7 @@ ghr structure facebook/react --depth 4
 
 ### Cache Location
 
-Repositories are cached in `~/.gh-cli-cache/`:
+Repositories are cached in `~/.ghr-cache/`:
 
 ```bash
 # Clear cache for a specific repo (using CLI)
@@ -207,13 +207,13 @@ ghr clean facebook/react
 ghr clean --all
 
 # Or manually
-rm -rf ~/.gh-cli-cache/facebook/react
-rm -rf ~/.gh-cli-cache/
+rm -rf ~/.ghr-cache/facebook/react
+rm -rf ~/.ghr-cache/
 ```
 
 ### Output Location
 
-Analysis results are saved in `~/.gh-cli-output/` when using the `-o` option.
+Analysis results are saved in `~/.ghr-output/` when using the `-o` option.
 
 ## 🤝 Contributing
 
