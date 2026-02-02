@@ -1,8 +1,8 @@
-# Claude Code Integration
+# Claude Code 集成指南
 
 > gh-repo-cli 与 Claude Code 结合使用的最佳实践
 
-## 核心理念
+## 🎯 核心理念
 
 **让 AI 主动判断何时使用工具，而不是手动调用。**
 
@@ -10,7 +10,7 @@
 
 ---
 
-## 一键配置
+## 🚀 快速配置（1 分钟）
 
 ### 步骤 1: 安装 gh-repo-cli
 
@@ -72,14 +72,14 @@ MCP 备用条件（仅在以下情况使用 zread MCP）:
 现在你可以直接用自然语言与 Claude Code 对话：
 
 ```
-You: "React 是如何实现 hooks 的？"
+你: "React 是如何实现 hooks 的？"
 
 Claude Code: [自动运行 ghr analyze facebook/react 并分析]
 ```
 
 ---
 
-## 对比优势
+## 📊 对比优势
 
 | 方面 | MCP 服务器 | gh-repo-cli |
 |------|-----------|-------------|
@@ -91,12 +91,12 @@ Claude Code: [自动运行 ghr analyze facebook/react 并分析]
 
 ---
 
-## 工作流程示例
+## 💡 使用示例
 
-### 示例 1: 隐式检测
+### 示例 1: 自动检测
 
 ```
-You: "How does React implement hooks?"
+你: "How does React implement hooks?"
 
 Claude Code:
   $ ghr analyze facebook/react
@@ -109,34 +109,34 @@ Claude Code:
 ### 示例 2: 直接请求
 
 ```
-You: "Analyze the Vue.js repository structure"
+你: "分析 Vue.js 的仓库结构"
 
 Claude Code:
   $ ghr structure vuejs/core --depth 3
 
-  Here's the Vue.js repository structure...
+  这是 Vue.js 的仓库结构...
 ```
 
 ### 示例 3: 仓库格式
 
 ```
-You: "Compare facebook/react and vuejs/core"
+你: "比较 facebook/react 和 vuejs/core"
 
 Claude Code:
   $ ghr analyze facebook/react
   $ ghr analyze vuejs/core
 
-  Key differences between React and Vue...
+  React 和 Vue 的主要区别...
 ```
 
 ---
 
-## 高级用法
+## 🔧 高级用法
 
 ### 比较分析
 
 ```
-You: "React 和 Vue 的响应式系统有什么区别？"
+你: "React 和 Vue 的响应式系统有什么区别？"
 
 Claude Code:
   $ ghr analyze facebook/react
@@ -150,20 +150,20 @@ Claude Code:
 ### Bug 调查
 
 ```
-You: "我遇到了 useEffect cleanup 的问题"
+你: "我遇到了 useEffect cleanup 的问题"
 
 Claude Code:
   $ ghr analyze facebook/react
   $ ghr search facebook/react "useEffect.*cleanup" -e .js
   $ ghr read facebook/react packages/react/src/ReactHooks.js
 
-  这里是 useEffect cleanup 的工作原理...
+  这是 useEffect cleanup 的工作原理...
 ```
 
 ### 迁移规划
 
 ```
-You: "我们要从 Moment.js 迁移到 date-fns"
+你: "我们要从 Moment.js 迁移到 date-fns"
 
 Claude Code:
   $ ghr search your-org/your-repo "moment"
@@ -175,7 +175,7 @@ Claude Code:
 
 ---
 
-## 最佳实践
+## ✨ 最佳实践
 
 ### 1. 让 AI 主导
 
@@ -203,7 +203,7 @@ ghr analyze facebook/react --no-cache
 ### 4. 先宽后深
 
 ```
-Good workflow:
+推荐工作流:
   1. "Vue.js 的仓库结构是什么？" → ghr structure
   2. "响应式是如何工作的？" → ghr search
   3. "展示响应式实现代码" → ghr read
@@ -211,7 +211,7 @@ Good workflow:
 
 ---
 
-## 故障排查
+## 🔍 故障排查
 
 ### Claude 没有使用 gh-repo-cli
 
@@ -247,7 +247,7 @@ which ghr
 
 ---
 
-## 总结
+## 🎉 总结
 
 **配置一次，永久生效**：
 1. 安装 gh-repo-cli（1 分钟）
