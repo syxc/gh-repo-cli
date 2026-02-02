@@ -1,0 +1,41 @@
+{
+  "name": "gh-repo-cli",
+  "version": "1.0.0",
+  "description": "A lightweight CLI tool for analyzing GitHub repositories without API tokens",
+  "main": "index.js",
+  "bin": {
+    "gh": "./index.js"
+  },
+  "scripts": {
+    "test": "node index.js analyze facebook/react",
+    "link": "npm link",
+    "unlink": "npm unlink -g gh"
+  },
+  "keywords": [
+    "github",
+    "cli",
+    "repository",
+    "analyzer",
+    "git",
+    "code-analysis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "cli-table3": "^0.6.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/gh-repo-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/gh-repo-cli/issues"
+  },
+  "homepage": "https://github.com/yourusername/gh-repo-cli#readme"
+}

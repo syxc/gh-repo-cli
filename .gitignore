@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+*.swp
+*.swo
+~/.gh-cli-cache/
+~/.gh-cli-output/
+npm-debug.log
+yarn-error.log
+.env
