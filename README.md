@@ -132,6 +132,10 @@ gh read facebook/react README.md
 
 # List files in a directory
 gh ls facebook/react/src
+
+# Clean cached repositories
+gh clean --all              # Clean all cached repos
+gh clean facebook/react     # Clean specific repo
 ```
 
 ### AI-Assisted Workflow (Recommended)
@@ -193,10 +197,14 @@ gh structure facebook/react --depth 4
 Repositories are cached in `~/.gh-cli-cache/`:
 
 ```bash
-# Clear cache for a specific repo
-rm -rf ~/.gh-cli-cache/facebook/react
+# Clear cache for a specific repo (using CLI)
+gh clean facebook/react
 
-# Clear all cache
+# Clear all cache (using CLI)
+gh clean --all
+
+# Or manually
+rm -rf ~/.gh-cli-cache/facebook/react
 rm -rf ~/.gh-cli-cache/
 ```
 

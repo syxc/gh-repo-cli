@@ -11,6 +11,7 @@ const { search } = require('./commands/search');
 const { structure } = require('./commands/structure');
 const { readFile, listFiles } = require('./commands/read');
 const { readme } = require('./commands/readme');
+const { clean } = require('./commands/clean');
 
 // Configuration
 const CONFIG = {
@@ -85,6 +86,16 @@ program
   .option('--no-cache', 'Bypass cache')
   .action((repo, options) => {
     readme(repo, { ...options, ...CONFIG });
+  });
+
+// Clean command
+program
+  .command('clean [repo]')
+  .description('Clean cached repositories')
+  .option('-a, --all', 'Clean all cached repositories')
+  .option('-o, --output', 'Clean output directory as well')
+  .action((repo, options) => {
+    clean(repo, { ...options, ...CONFIG });
   });
 
 program.parse();
