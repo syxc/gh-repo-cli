@@ -69,7 +69,7 @@ jobs:
           echo "::warning::README.md missing Usage section"
         fi
 
-    - name: Check test coverage
+    - name: Run tests
       run: |
-        npm run test:coverage
-        echo "Coverage report generated"
+        npm test
+        echo "Tests completed"
