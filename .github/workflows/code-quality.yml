@@ -1,0 +1,75 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Check code formatting
+      run: npm run lint
+
+    - name: Check for TODO comments
+      run: |
+        if grep -r "TODO" --include="*.js" commands/ lib/ .github/workflows/; then
+          echo "::warning::TODO comments found in code"
+        fi
+
+    - name: Check file sizes
+      run: |
+        echo "Checking file sizes..."
+        for file in commands/*.js lib/*.js; do
+          if [ -f "$file" ]; then
+            size=$(wc -l < "$file")
+            if [ $size -gt 300 ]; then
+              echo "::warning::$file has $size lines (consider splitting)"
+            fi
+          fi
+        done
+
+    - name: Validate package.json
+      run: |
+        echo "Validating package.json..."
+        node -e "const pkg = require('./package.json'); \
+          if (!pkg.name || !pkg.version || !pkg.description) { \
+            throw new Error('Missing required fields in package.json'); \
+          }"
+
+    - name: Check documentation
+      run: |
+        if [ ! -f README.md ]; then
+          echo "::error::README.md not found"
+          exit 1
+        fi
+
+        # Check if README has required sections
+        if ! grep -q "## Installation" README.md; then
+          echo "::warning::README.md missing Installation section"
+        fi
+
+        if ! grep -q "## Usage" README.md; then
+          echo "::warning::README.md missing Usage section"
+        fi
+
+    - name: Check test coverage
+      run: |
+        npm run test:coverage
+        echo "Coverage report generated"
