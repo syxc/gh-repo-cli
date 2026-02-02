@@ -22,11 +22,11 @@ npm link
 
 # Verify installation
 echo "✅ Verifying installation..."
-if command -v gh &> /dev/null; then
+if command -v ghr &> /dev/null; then
     echo "✅ Installation successful!"
     echo ""
-    echo "Run 'gh --version' to verify"
-    echo "Run 'gh --help' to see all commands"
+    echo "Run 'ghr --version' to verify"
+    echo "Run 'ghr --help' to see all commands"
 else
     echo "❌ Installation failed"
     exit 1
