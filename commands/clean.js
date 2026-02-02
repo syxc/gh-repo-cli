@@ -33,7 +33,7 @@ async function clean(repo, options) {
         }
       } else {
         console.log(chalk.yellow('⚠️  Use --all flag to clean all cached repositories'));
-        console.log(chalk.gray('   Or specify a repository: gh clean owner/repo'));
+        console.log(chalk.gray('   Or specify a repository: ghr clean owner/repo'));
       }
     }
 

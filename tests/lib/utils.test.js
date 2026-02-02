@@ -15,7 +15,7 @@ describe('Utils Module', () => {
 
   beforeEach(() => {
     // Create temporary directory for each test
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gh-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ghr-test-'));
   });
 
   afterEach(() => {

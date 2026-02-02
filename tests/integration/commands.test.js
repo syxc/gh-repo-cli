@@ -13,7 +13,7 @@ describeOrSkip('Integration Tests', () => {
 
   beforeAll(() => {
     // Create temporary cache directory
-    cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gh-cache-'));
+    cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ghr-cache-'));
   });
 
   afterAll(() => {
