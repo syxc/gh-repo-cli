@@ -44,81 +44,77 @@ ghr read facebook/react README.md
 
 #### 2. With AI Coding Assistants (Recommended!)
 
-**最佳实践**：将 gh-repo-cli 的使用规则添加到 `~/.claude/CLAUDE.md` 全局配置，让 AI 自动检测何时需要分析仓库。
+**Best Practice**: Add gh-repo-cli usage rules to `~/.claude/CLAUDE.md` global configuration, let AI automatically detect when repository analysis is needed.
 
-**一键配置** - 在 `~/.claude/CLAUDE.md` 中添加：
+**One-Step Setup** - Add to `~/.claude/CLAUDE.md`:
 
 ```markdown
-# GitHub 仓库分析优先级
+# GitHub Repository Analysis Priority
 
-```
-GLM MCP (zread): 有限配额 ❌
-gh-repo-cli: 完全免费 ✅
-```
+GLM MCP (zread): Limited quota ❌
+gh-repo-cli: Completely free ✅
 
-触发规则（用户输入匹配 → 使用 gh-repo-cli）:
-- github.com/ 链接
-- "github 仓库" | "分析.*仓库" | "仓库.*分析"
-- "查看.*代码" | "阅读.*源码" | "clone.*github"
-- owner/repo 格式（如 facebook/react）
+Trigger rules (user input matches → use gh-repo-cli):
+- github.com/ links
+- "github repository" | "analyze.*repository" | "repository.*analysis"
+- "view.*code" | "read.*source" | "clone.*github"
+- owner/repo format (e.g., facebook/react)
 
-使用方式：
-```bash
-ghr analyze <owner/repo>           # 完整分析
-ghr search <owner/repo> <query>    # 搜索代码
-ghr structure <owner/repo>         # 获取结构
-ghr read <owner/repo> <file>       # 读取文件
-ghr readme <owner/repo>            # 读取 README
-```
+Usage:
+ghr analyze <owner/repo>           # Full analysis
+ghr search <owner/repo> <query>    # Search code
+ghr structure <owner/repo>         # Get structure
+ghr read <owner/repo> <file>       # Read file
+ghr readme <owner/repo>            # Read README
 
-MCP 备用条件（仅在以下情况使用 zread MCP）:
-1. 私有仓库（gh-repo-cli 仅支持公开仓库）
-2. 需要 git 历史
-3. 用户明确要求使用 MCP
+MCP fallback conditions (only use zread MCP when):
+1. Private repository (gh-repo-cli only supports public repositories)
+2. Git history needed
+3. User explicitly requests MCP
 ```
 
-**配置后直接自然对话**：
+**Start natural conversation after configuration**:
 
 ```
-You: "React 是如何实现 hooks 的？"
+You: "How does React implement hooks?"
 
 Claude Code:
   $ ghr analyze facebook/react
   $ ghr search facebook/react "useState" -e .js
   $ ghr read facebook/react packages/react/src/ReactHooks.js
 
-  基于仓库分析，React hooks 的实现方式是...
+  Based on repository analysis, React hooks implementation is...
 ```
 
-**优势**：
-- ✅ **零配置** - 无需创建 skill 文件
-- ✅ **自动检测** - AI 决定何时使用 gh-repo-cli
-- ✅ **自然交互** - 用自然语言提问，无需手动调用命令
-- ✅ **智能降级** - 私有仓库时自动使用 MCP
-- ✅ **始终生效** - 所有对话都可用
+**Advantages**:
+- ✅ **Zero config** - No need to create skill files
+- ✅ **Auto detection** - AI decides when to use gh-repo-cli
+- ✅ **Natural interaction** - Ask in natural language, no manual command invocation
+- ✅ **Smart fallback** - Automatically use MCP for private repositories
+- ✅ **Always active** - Works in all conversations
 
-📖 **完整指南**：[docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) - 详细示例、高级工作流和故障排查
+📖 **Complete Guide**: [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) - Detailed examples, advanced workflows, and troubleshooting
 
-##### 🔄 Other AI Assistants
+#### 3. Other AI Assistants
 
 **Cursor / Windsurf / Copilot**:
 ```bash
-# 在终端分析仓库
+# Analyze repository in terminal
 ghr analyze vuejs/core -o vue-analysis.json
 
-# 在 AI 聊天中引用输出
+# Reference output in AI chat
 @vue-analysis.json Explain Vue's reactivity system
 ```
 
 **ChatGPT / Claude (Web)**:
 ```bash
-# 导出仓库数据
+# Export repository data
 ghr analyze tensorflow/tensorflow -o tf.json
 
-# 上传 JSON 文件并提问
+# Upload JSON file and ask questions
 ```
 
-##### 📊 MCP vs CLI Comparison
+#### 4. MCP vs CLI Comparison
 
 | Feature | MCP Servers | gh-repo-cli |
 |---------|-------------|-------------|
@@ -255,13 +251,13 @@ Analysis results are saved in `~/.ghr-output/` when using the `-o` option.
 
 ## 📖 Additional Documentation
 
-- 🤖 **[AI Integration Guide](docs/AI_INTEGRATION.md)** - Claude Code 集成最佳实践
-- 🚀 **[Release Workflow Guide](docs/RELEASE_WORKFLOW.md)** - 自动发布配置指南
-- 🧪 **[Testing Guide](docs/TESTING.md)** - 测试指南
+- 🤖 **[AI Integration Guide](docs/AI_INTEGRATION.md)** - Best practices for Claude Code integration
+- 🚀 **[Release Workflow Guide](docs/RELEASE_WORKFLOW.md)** - Automated release configuration guide
+- 🧪 **[Testing Guide](docs/TESTING.md)** - Testing guide
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 📝 License
 
