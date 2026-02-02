@@ -18,8 +18,6 @@ async function readFile(repo, filePath, options) {
 
       // Try to suggest similar files
       console.log(chalk.gray('Available files in this directory:\n'));
-      const dir = path.dirname(fullPath);
-      const baseName = path.basename(filePath);
       const parentDir = path.join(repoPath, path.dirname(filePath));
 
       try {

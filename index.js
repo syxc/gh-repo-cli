@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const { program } = require('commander');
-const chalk = require('chalk');
 const path = require('path');
 const os = require('os');
 

@@ -42,7 +42,7 @@ async function clean(repo, options) {
       const outputDir = options.outputDir;
       if (fs.existsSync(outputDir)) {
         fs.rmSync(outputDir, { recursive: true, force: true });
-        console.log(chalk.green(`✅ Cleaned output directory`));
+        console.log(chalk.green('✅ Cleaned output directory'));
       }
     }
 
@@ -81,7 +81,7 @@ function getDirectorySize(dirPath) {
  * Format bytes to human readable
  */
 function formatBytes(bytes) {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0) {return '0 B';}
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));

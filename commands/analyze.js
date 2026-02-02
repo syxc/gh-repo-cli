@@ -1,9 +1,8 @@
 const chalk = require('chalk');
 const Table = require('cli-table3');
 const { cloneRepo, getRepoInfo } = require('../lib/git');
-const { traverseDir, formatBytes, saveOutput } = require('../lib/utils');
+const { traverseDir, saveOutput } = require('../lib/utils');
 const path = require('path');
-const fs = require('fs');
 
 async function analyze(repo, options) {
   try {
@@ -22,7 +21,7 @@ async function analyze(repo, options) {
     const fileTypes = {};
     const languages = {};
 
-    function countFiles(items) {
+    const countFiles = function countFiles(items) {
       for (const item of items) {
         if (item.type === 'file') {
           const ext = path.extname(item.name).toLowerCase() || '(no extension)';
@@ -37,7 +36,7 @@ async function analyze(repo, options) {
           countFiles(item.children);
         }
       }
-    }
+    };
 
     countFiles(structure);
 
@@ -139,7 +138,7 @@ function detectLanguage(filename) {
   return langMap[ext] || null;
 }
 
-function displayTree(items, prefix = '', isLast = true) {
+function displayTree(items, prefix = '') {
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const isLastItem = i === items.length - 1;
