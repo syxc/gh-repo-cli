@@ -2,7 +2,7 @@
 
 > gh-repo-cli 与 Claude Code 结合使用的最佳实践
 
-## 🎯 核心理念
+## 核心理念
 
 **让 AI 主动判断何时使用工具，而不是手动调用。**
 
@@ -10,41 +10,26 @@
 
 ---
 
-## 🚀 快速配置（1 分钟）
+## 快速配置
 
-### 步骤 1: 安装 gh-repo-cli
-
-**方法 1: 从源代码安装（推荐）**
+### 1. 安装 gh-repo-cli
 
 ```bash
-# 克隆仓库
 git clone https://github.com/syxc/gh-repo-cli.git
 cd gh-repo-cli
-
-# 安装依赖
 npm install
-
-# 全局链接
 npm link
 ```
 
-**方法 2: 使用 npm install（如已发布）**
+### 2. 添加配置到 CLAUDE.md
 
-```bash
-npm install -g gh-repo-cli
-```
-
-### 步骤 2: 添加配置到 CLAUDE.md
-
-编辑（或创建）`~/.claude/CLAUDE.md` 文件，添加以下内容：
+编辑 `~/.claude/CLAUDE.md` 文件，添加以下内容：
 
 ```markdown
 # GitHub 仓库分析优先级
 
-```
 GLM MCP (zread): 有限配额 ❌
 gh-repo-cli: 完全免费 ✅
-```
 
 触发规则（用户输入匹配 → 使用 gh-repo-cli）:
 - github.com/ 链接
@@ -53,13 +38,11 @@ gh-repo-cli: 完全免费 ✅
 - owner/repo 格式（如 facebook/react）
 
 使用方式：
-```bash
 ghr analyze <owner/repo>           # 完整分析
 ghr search <owner/repo> <query>    # 搜索代码
 ghr structure <owner/repo>         # 获取结构
 ghr read <owner/repo> <file>       # 读取文件
 ghr readme <owner/repo>            # 读取 README
-```
 
 MCP 备用条件（仅在以下情况使用 zread MCP）:
 1. 私有仓库（gh-repo-cli 仅支持公开仓库）
@@ -67,19 +50,16 @@ MCP 备用条件（仅在以下情况使用 zread MCP）:
 3. 用户明确要求使用 MCP
 ```
 
-### 步骤 3: 开始使用
-
-现在你可以直接用自然语言与 Claude Code 对话：
+### 3. 开始使用
 
 ```
-你: "React 是如何实现 hooks 的？"
-
-Claude Code: [自动运行 ghr analyze facebook/react 并分析]
+你: "我想了解 Next.js 的项目架构"
+Claude Code: [自动运行 ghr analyze vercel/next.js 并分析]
 ```
 
 ---
 
-## 📊 对比优势
+## 对比优势
 
 | 方面 | MCP 服务器 | gh-repo-cli |
 |------|-----------|-------------|
@@ -91,140 +71,108 @@ Claude Code: [自动运行 ghr analyze facebook/react 并分析]
 
 ---
 
-## 💡 使用示例
+## 使用示例
 
-### 示例 1: 自动检测
+### 场景 1: 探索新项目架构
 
 ```
-你: "How does React implement hooks?"
+你: "我想看看 TypeScript 是如何组织的"
 
 Claude Code:
-  $ ghr analyze facebook/react
-  $ ghr search facebook/react "useState" -e .js
-  $ ghr read facebook/react packages/react/src/ReactHooks.js
+  $ ghr structure microsoft/TypeScript --depth 2
 
-  Based on the repository analysis, here's how React implements hooks...
+  TypeScript 项目的目录结构如下：
+  ├── src/          # 编译器核心代码
+  ├── scripts/      # 构建脚本
+  └── tests/        # 测试文件
 ```
 
-### 示例 2: 直接请求
+### 场景 2: 查找功能实现
 
 ```
-你: "分析 Vue.js 的仓库结构"
+你: "Vite 是如何实现 HMR 的？"
 
 Claude Code:
-  $ ghr structure vuejs/core --depth 3
+  $ ghr search vitejs/vite "HMR|hot.*module"
+  $ ghr read vitejs/vite packages/vite/src/server/moduleGraph.ts
 
-  这是 Vue.js 的仓库结构...
+  Vite 的 HMR 实现在 moduleGraph.ts 中，通过 WebSocket 连接...
 ```
 
-### 示例 3: 仓库格式
+### 场景 3: 学习配置规范
 
 ```
-你: "比较 facebook/react 和 vuejs/core"
+你: "ESLint 的配置文件有哪些格式？"
 
 Claude Code:
-  $ ghr analyze facebook/react
-  $ ghr analyze vuejs/core
+  $ ghr search eslint/eslint "config.*file" -e .md
+  $ ghr read eslint/eslint docs/use/configuration/README.md
 
-  React 和 Vue 的主要区别...
+  ESLint 支持 .eslintrc.js、.eslintrc.json、.eslintrc.yml 等格式...
+```
+
+### 场景 4: 对比项目差异
+
+```
+你: "Webpack 和 Vite 的构建方式有什么不同？"
+
+Claude Code:
+  $ ghr analyze webpack/webpack
+  $ ghr analyze vitejs/vite
+
+  两者核心区别：
+  - Webpack 使用打包模式，Vite 使用 ESM + 原生浏览器
+  - Vite 启动速度更快，开发体验更好...
 ```
 
 ---
 
-## 🔧 高级用法
+## 最佳实践
 
-### 比较分析
+### 自然提问，让 AI 主导
 
-```
-你: "React 和 Vue 的响应式系统有什么区别？"
+✅ **正确**: "Tailwind CSS 的架构是怎样的？" → Claude 自动调用 ghr
+❌ **错误**: "运行 ghr analyze tailwindlabs/tailwindcss"
 
-Claude Code:
-  $ ghr analyze facebook/react
-  $ ghr search facebook/react "useState" -e .js
-  $ ghr analyze vuejs/core
-  $ ghr search vuejs/core "reactive" -e .ts
-
-  比较分析结果...
-```
-
-### Bug 调查
+### 由宽到深，逐步深入
 
 ```
-你: "我遇到了 useEffect cleanup 的问题"
-
-Claude Code:
-  $ ghr analyze facebook/react
-  $ ghr search facebook/react "useEffect.*cleanup" -e .js
-  $ ghr read facebook/react packages/react/src/ReactHooks.js
-
-  这是 useEffect cleanup 的工作原理...
+推荐流程:
+  1. "这个项目的整体结构是什么？" → ghr structure
+  2. "路由功能在哪里实现？" → ghr search
+  3. "给我看看路由器的核心代码" → ghr read
 ```
 
-### 迁移规划
-
-```
-你: "我们要从 Moment.js 迁移到 date-fns"
-
-Claude Code:
-  $ ghr search your-org/your-repo "moment"
-  $ ghr analyze moment/moment
-  $ ghr analyze date-fns/date-fns
-
-  迁移建议...
-```
-
----
-
-## ✨ 最佳实践
-
-### 1. 让 AI 主导
-
-✅ **正确**: "React 是如何工作的？" → Claude 自动运行 ghr
-❌ **错误**: "运行 ghr analyze facebook/react"
-
-### 2. 使用自然语言
-
-✅ **正确**: "Vue 的结构是什么？"
-❌ **错误**: "执行 ghr structure vuejs/core"
-
-### 3. 利用缓存
+### 充分利用缓存
 
 ```bash
-# 首次运行：克隆仓库（10-30 秒）
-ghr analyze facebook/react
+# 首次分析：克隆仓库（10-30 秒）
+ghr analyze vercel/next.js
 
-# 后续运行：使用缓存（<1 秒）
-ghr analyze facebook/react
+# 后续查询：直接使用缓存（<1 秒）
+ghr search vercel/next.js "router"
+ghr read vercel/next.js packages/next/server/router.ts
 
-# 强制刷新
-ghr analyze facebook/react --no-cache
-```
-
-### 4. 先宽后深
-
-```
-推荐工作流:
-  1. "Vue.js 的仓库结构是什么？" → ghr structure
-  2. "响应式是如何工作的？" → ghr search
-  3. "展示响应式实现代码" → ghr read
+# 如需更新：强制刷新
+ghr analyze vercel/next.js --no-cache
 ```
 
 ---
 
-## 🔍 故障排查
+## 故障排查
 
 ### Claude 没有使用 gh-repo-cli
 
-**检查**:
+**检查配置**:
 ```bash
 cat ~/.claude/CLAUDE.md
 ```
 
-应该包含 "GitHub 仓库分析优先级" 部分
+应包含 "GitHub 仓库分析优先级" 部分
 
 ### ghr 命令未找到
 
-**从源代码安装**:
+**重新安装**:
 ```bash
 git clone https://github.com/syxc/gh-repo-cli.git
 cd gh-repo-cli
@@ -232,33 +180,33 @@ npm install
 npm link
 ```
 
-**验证**:
+**验证安装**:
 ```bash
 which ghr
-# 应该输出: /usr/local/bin/ghr 或类似路径
+# 应输出: /usr/local/bin/ghr
 ```
 
 ### Claude 使用 MCP 而不是 gh-repo-cli
 
-这是**预期行为**！当以下情况时会自动降级到 MCP：
+这是**预期行为**！以下情况会自动降级到 MCP：
 1. 私有仓库
-2. 需要 git 历史
+2. 需要 git 历史记录
 3. 用户明确要求使用 MCP
 
 ---
 
-## 🎉 总结
+## 总结
 
 **配置一次，永久生效**：
 1. 安装 gh-repo-cli（1 分钟）
 2. 添加配置到 CLAUDE.md（10 秒）
-3. 开始自然对话（零学习）
+3. 自然对话即可使用（零学习）
 
-**优势**：
+**核心优势**：
 - ✅ AI 自动检测，无需手动调用
-- ✅ 自然语言交互
-- ✅ 智能降级到 MCP（私有仓库时）
 - ✅ 无限使用，完全免费
+- ✅ 本地分析，隐私安全
+- ✅ 智能降级，兼容私有仓库
 
 ---
 
