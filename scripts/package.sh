@@ -5,7 +5,9 @@ set -e
 
 VERSION="1.0.0"
 PACKAGE_NAME="gh-repo-cli-v${VERSION}"
-OUTPUT_DIR="/Users/syxc/.workany/sessions/20260202143307_glm-coding-plan-lite-search-mcp"
+# Use parent directory of script as output directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUTPUT_DIR="$(dirname "${SCRIPT_DIR}")"
 PACKAGE_DIR="${OUTPUT_DIR}/${PACKAGE_NAME}"
 
 echo "📦 Packaging gh-repo-cli v${VERSION}..."
@@ -14,13 +16,12 @@ echo "📦 Packaging gh-repo-cli v${VERSION}..."
 rm -rf "${PACKAGE_DIR}"
 mkdir -p "${PACKAGE_DIR}"
 
-# Copy all files
-cp -r . "${PACKAGE_DIR}/"
+# Copy all files (exclude package directory itself)
+rsync -av --exclude='node_modules' --exclude='.git' --exclude='gh-repo-cli-v*.zip' --exclude="${PACKAGE_NAME}" . "${PACKAGE_DIR}/"
 
 # Remove unnecessary files
 cd "${PACKAGE_DIR}"
-rm -rf node_modules .git gh-repo-cli-v*.zip
-rm -f package.sh
+rm -f scripts/package.sh
 
 # Create zip
 cd "${OUTPUT_DIR}"
