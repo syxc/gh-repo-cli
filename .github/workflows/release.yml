@@ -37,14 +37,14 @@ jobs:
     - name: Generate checksum
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
-        sha256sum "gh-repo-cli-${VERSION}.zip" > "gh-repo-cli-${VERSION}.zip.sha256"
+        sha256sum "gh-repo-cli-v${VERSION}.zip" > "gh-repo-cli-v${VERSION}.zip.sha256"
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          gh-repo-cli-*.zip
-          gh-repo-cli-*.zip.sha256
+          gh-repo-cli-v*.zip
+          gh-repo-cli-v*.zip.sha256
         generate_release_notes: true
         draft: false
         prerelease: false
