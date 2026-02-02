@@ -25,7 +25,7 @@ npm link
 
 Edit `~/.claude/CLAUDE.md` file and add:
 
-```markdown
+```
 # GitHub Repository Analysis Priority
 
 GLM MCP (zread): Limited quota ❌

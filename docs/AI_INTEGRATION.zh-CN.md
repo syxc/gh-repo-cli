@@ -25,7 +25,7 @@ npm link
 
 编辑 `~/.claude/CLAUDE.md` 文件，添加以下内容：
 
-```markdown
+```
 # GitHub 仓库分析优先级
 
 GLM MCP (zread): 有限配额 ❌
