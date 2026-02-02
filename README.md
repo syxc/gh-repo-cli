@@ -48,7 +48,7 @@ ghr read facebook/react README.md
 
 **One-Step Setup** - Add to `~/.claude/CLAUDE.md`:
 
-```markdown
+```
 # GitHub Repository Analysis Priority
 
 GLM MCP (zread): Limited quota ❌
