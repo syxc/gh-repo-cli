@@ -48,13 +48,11 @@ ghr read facebook/react README.md
 
 **一键配置** - 在 `~/.claude/CLAUDE.md` 中添加：
 
-```markdown
+```
 # GitHub 仓库分析优先级
 
-```
 GLM MCP (zread): 有限配额 ❌
 gh-repo-cli: 完全免费 ✅
-```
 
 触发规则（用户输入匹配 → 使用 gh-repo-cli）:
 - github.com/ 链接
@@ -63,13 +61,11 @@ gh-repo-cli: 完全免费 ✅
 - owner/repo 格式（如 facebook/react）
 
 使用方式：
-```bash
 ghr analyze <owner/repo>           # 完整分析
 ghr search <owner/repo> <query>    # 搜索代码
 ghr structure <owner/repo>         # 获取结构
 ghr read <owner/repo> <file>       # 读取文件
 ghr readme <owner/repo>            # 读取 README
-```
 
 MCP 备用条件（仅在以下情况使用 zread MCP）:
 1. 私有仓库（gh-repo-cli 仅支持公开仓库）

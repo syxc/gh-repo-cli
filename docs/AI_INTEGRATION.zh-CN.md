@@ -131,7 +131,7 @@ Claude Code:
 
 ### 自然提问，让 AI 主导
 
-✅ **正确**: "Tailwind CSS 的架构是怎样的？" → Claude 自动调用 ghr
+✅ **正确**: "Tailwind CSS 的架构是怎样的？" → Claude 自动调用 ghr  
 ❌ **错误**: "运行 ghr analyze tailwindlabs/tailwindcss"
 
 ### 由宽到深，逐步深入

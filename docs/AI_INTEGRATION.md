@@ -131,7 +131,7 @@ Claude Code:
 
 ### Ask Naturally, Let AI Lead
 
-✅ **Correct**: "How is Tailwind CSS structured?" → Claude automatically calls ghr
+✅ **Correct**: "How is Tailwind CSS structured?" → Claude automatically calls ghr  
 ❌ **Wrong**: "Run ghr analyze tailwindlabs/tailwindcss"
 
 ### Broad to Deep, Progressive Approach
