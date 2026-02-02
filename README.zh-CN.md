@@ -34,9 +34,9 @@
 直接在终端使用，快速分析仓库：
 
 ```bash
-gh analyze facebook/react
-gh search vuejs/core ref
-gh read facebook/react README.md
+ghr analyze facebook/react
+ghr search vuejs/core ref
+ghr read facebook/react README.md
 ```
 
 #### 2. 与 AI 编程助手配合使用（推荐！）
@@ -49,17 +49,17 @@ gh read facebook/react README.md
 
 **步骤 1**: 获取仓库结构
 ```bash
-gh structure facebook/react --depth 3
+ghr structure facebook/react --depth 3
 ```
 
 **步骤 2**: 搜索实现代码
 ```bash
-gh search facebook/react useState -e .js -o results.json
+ghr search facebook/react useState -e .js -o results.json
 ```
 
 **步骤 3**: 读取相关文件
 ```bash
-gh read facebook/react packages/react/src/ReactHooks.js
+ghr read facebook/react packages/react/src/ReactHooks.js
 ```
 
 **步骤 4**: 向 Claude Code 提问
@@ -68,7 +68,7 @@ gh read facebook/react packages/react/src/ReactHooks.js
 你能解释一下它的内部工作原理吗？
 
 以下是文件内容：
-[粘贴 gh read 命令的输出]
+[粘贴 ghr read 命令的输出]
 ```
 
 **为什么这样更好**:
@@ -119,32 +119,32 @@ npm link
 
 ```bash
 # 分析仓库
-gh analyze facebook/react
+ghr analyze facebook/react
 
 # 获取目录结构
-gh structure vuejs/core
+ghr structure vuejs/core
 
 # 搜索代码模式
-gh search facebook/react useState
+ghr search facebook/react useState
 
 # 读取特定文件
-gh read facebook/react README.md
+ghr read facebook/react README.md
 
 # 列出目录文件
-gh ls facebook/react/src
+ghr ls facebook/react/src
 ```
 
 ### AI 辅助工作流（推荐）
 
 ```bash
 # 步骤 1: 探索仓库
-gh structure facebook/react --depth 2
+ghr structure facebook/react --depth 2
 
 # 步骤 2: 搜索特定模式
-gh search facebook/react useEffect -e .js -o search_results.json
+ghr search facebook/react useEffect -e .js -o search_results.json
 
 # 步骤 3: 读取相关文件
-gh read facebook/react packages/react/src/ReactHooks.js
+ghr read facebook/react packages/react/src/ReactHooks.js
 
 # 步骤 4: 与 AI 助手分享发现
 # (Claude Code、Cursor、Copilot 等)
@@ -159,7 +159,7 @@ gh read facebook/react packages/react/src/ReactHooks.js
 export GH_PROXY="http://127.0.0.1:7890"
 
 # 或单次使用
-GH_PROXY="http://127.0.0.1:7890" gh analyze facebook/react
+GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react
 ```
 
 支持的代理类型：
@@ -171,19 +171,19 @@ GH_PROXY="http://127.0.0.1:7890" gh analyze facebook/react
 
 ```bash
 # 保存输出到文件（非常适合 AI 分析！）
-gh analyze facebook/react -o output.json
+ghr analyze facebook/react -o output.json
 
 # 按文件扩展名过滤搜索
-gh search facebook/react useEffect -e .js
+ghr search facebook/react useEffect -e .js
 
 # 不区分大小写搜索
-gh search facebook/react types --ignore-case
+ghr search facebook/react types --ignore-case
 
 # 绕过缓存并重新克隆
-gh analyze facebook/react --no-cache
+ghr analyze facebook/react --no-cache
 
 # 获取更深的目录结构
-gh structure facebook/react --depth 4
+ghr structure facebook/react --depth 4
 ```
 
 ## 🔧 配置
