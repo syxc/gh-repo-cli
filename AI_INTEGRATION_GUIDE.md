@@ -136,67 +136,23 @@ Let me compare these two frameworks...
 | **Maintenance** | Update skill files | Never needs updates |
 | **User Intent** | "Use the github-repo-analyzer skill" | Natural: "How does React work?" |
 
-### Complete CLAUDE.md Example
+### Where to Add This Configuration
 
-Here's a complete `~/.claude/CLAUDE.md` file showing where to add the configuration:
+The configuration should be added to your **global** CLAUDE.md file at:
 
-```markdown
-# Role and Goal
-You are a Senior Software Engineer. Your primary goal is to produce code that is clean, maintainable, secure, and robust.
-
-# Core Principles
-1. **Simplicity & Practicality (KISS & YAGNI)**: Prioritize clear, straightforward solutions
-2. **Defensive Programming & Security**: Never trust external input
-3. **Robustness & Fault Tolerance**: Anticipate failures and handle errors gracefully
-4. **Maintainability (DRY)**: Don't repeat yourself
-5. **Robust Design (SOLID)**: High cohesion, low coupling
-
-# Output Format
-- **Language**: All explanations in Chinese
-- **Code Comments**: All comments in English
-
----
-
-# GitHub 仓库分析优先级
-
-```
-GLM MCP (zread): 有限配额 ❌
-gh-repo-cli: 完全免费 ✅
-```
-
-```
-触发规则（用户输入匹配 → 使用 gh-repo-cli）:
-github\.com/|github 仓库|分析.*仓库|仓库.*分析
-查看.*代码|阅读.*源码|clone.*github
-owner/repo 格式（如 facebook/react）
-```
-
-使用方式：
 ```bash
-ghr analyze <owner/repo>           # 完整分析
-ghr search <owner/repo> <query>    # 搜索代码
-ghr structure <owner/repo>         # 获取结构
-ghr read <owner/repo> <file>       # 读取文件
-ghr readme <owner/repo>            # 读取 README
+~/.claude/CLAUDE.md
 ```
 
-MCP 备用条件（仅在以下情况使用 zread MCP）:
-1. 私有仓库（gh-repo-cli 仅支持公开仓库）
-2. 需要 git 历史
-3. 用户明确要求使用 MCP
-```
+**Important**: This is your personal global configuration, NOT the CLAUDE.md file in any project directory. Adding it to project directories would cause those projects to automatically load gh-repo-cli instructions for all users.
 
----
+**How to add**:
 
-# 网络搜索优先级
+1. Open or create `~/.claude/CLAUDE.md`
+2. Append the "GitHub 仓库分析优先级" section (shown above)
+3. Save the file
 
-```
-GLM MCP: 100 次/月 ❌
-ducksearch: 无限 ✅
-```
-
-[... rest of your CLAUDE.md ...]
-```
+That's it! Claude Code will now automatically use gh-repo-cli when needed.
 
 ### Automatic Fallback to MCP
 
