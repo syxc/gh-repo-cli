@@ -1,11 +1,21 @@
 {
-  "name": "gh-repo-cli",
-  "version": "1.0.0",
+  "name": "@syxc/gh-repo-cli",
+  "version": "1.0.1",
   "description": "A lightweight CLI tool for analyzing GitHub repositories without API tokens",
   "main": "index.js",
   "bin": {
     "ghr": "./index.js"
   },
+  "files": [
+    "index.js",
+    "commands/",
+    "lib/",
+    "docs/",
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "test": "npx jest@^29.7.0",
     "test:watch": "npx jest@^29.7.0 --watch",
@@ -15,7 +25,9 @@
     "validate": "npm run lint && npm run test",
     "precommit": "npm run validate",
     "link": "npm link",
-    "unlink": "npm unlink -g ghr"
+    "unlink": "npm unlink -g ghr",
+    "prepublishOnly": "npm run lint && npx jest@^29.7.0 tests/lib/",
+    "prepack": "npm run lint && npx jest@^29.7.0 tests/lib/"
   },
   "keywords": [
     "github",
