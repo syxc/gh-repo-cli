@@ -1,5 +1,5 @@
 {
-  "name": "@syxc/gh-repo-cli",
+  "name": "gh-repo-cli",
   "version": "1.0.1",
   "description": "A lightweight CLI tool for analyzing GitHub repositories without API tokens",
   "main": "index.js",

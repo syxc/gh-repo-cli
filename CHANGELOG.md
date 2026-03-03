@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add `.npmignore` to exclude development files from package
 - Add `files` field to package.json for explicit publish control
-- Update README with installation instructions (npm + manual install)
+- Update README with manual installation instructions (git clone + npm link)
 - Add `prepublishOnly` and `prepack` scripts for quality checks
 
 ## [1.0.0] - 2026-02-02

@@ -139,13 +139,14 @@ ghr analyze tensorflow/tensorflow -o tf.json
 ## 📦 安装
 
 ```bash
-# 通过 npm 安装（推荐）
-npm install -g @syxc/gh-repo-cli
-
-# 或克隆仓库手动安装
+# 克隆仓库
 git clone https://github.com/syxc/gh-repo-cli.git
 cd gh-repo-cli
+
+# 安装依赖
 npm install
+
+# 全局链接
 npm link
 ```
 

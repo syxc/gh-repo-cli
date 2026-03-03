@@ -139,13 +139,14 @@ ghr analyze tensorflow/tensorflow -o tf.json
 ## 📦 Installation
 
 ```bash
-# Install via npm (recommended)
-npm install -g @syxc/gh-repo-cli
-
-# Or clone and link manually
+# Clone the repository
 git clone https://github.com/syxc/gh-repo-cli.git
 cd gh-repo-cli
+
+# Install dependencies
 npm install
+
+# Link globally
 npm link
 ```
 
