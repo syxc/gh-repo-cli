@@ -25,7 +25,7 @@ const CONFIG = {
 program
   .name('ghr')
   .description('CLI tool for analyzing GitHub repositories')
-  .version('1.0.1');
+  .version('0.1.0');
 
 // Analyze command
 program
