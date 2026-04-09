@@ -27,10 +27,10 @@ func ReadFileContent(filePath string) (string, error) {
 
 // FileStats holds file statistics
 type FileStats struct {
-	Size        int64     `json:"size"`
-	Modified    int64     `json:"modified"`
-	IsFile      bool      `json:"isFile"`
-	IsDirectory bool      `json:"isDirectory"`
+	Size        int64 `json:"size"`
+	Modified    int64 `json:"modified"`
+	IsFile      bool  `json:"isFile"`
+	IsDirectory bool  `json:"isDirectory"`
 }
 
 // GetFileStats retrieves file statistics

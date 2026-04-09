@@ -6,10 +6,10 @@ import (
 
 func TestSortMapByValue(t *testing.T) {
 	input := map[string]int{
-		"go":    10,
-		"js":    5,
+		"go":     10,
+		"js":     5,
 		"python": 15,
-		"rust":  3,
+		"rust":   3,
 	}
 
 	result := sortMapByValue(input)
