@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-09
+
+### Changed
+- **Complete rewrite in Go** - Migrated from Node.js to Go for better performance and distribution
+- New installation methods: `go install`, pre-built binaries, or build from source
+- Updated all GitHub Actions workflows for Go build process
+- Updated documentation to reflect Go-based installation and development
+
+### Added
+- Cross-platform binary releases for Linux, macOS, and Windows (amd64/arm64)
+- Improved error handling and resource management
+- Better CJK (Chinese, Japanese, Korean) character support in search and display
+
+### Removed
+- Node.js dependencies and npm-based installation (replaced by Go binaries)
+- Jest testing framework (replaced by Go's built-in testing)
+- ESLint configuration (replaced by go vet and golint)
+
 ## [0.1.2] - 2026-04-09
 
 ### Changed

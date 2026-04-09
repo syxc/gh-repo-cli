@@ -2,56 +2,56 @@
 
 ## Overview
 
-This document describes the testing setup for gh-repo-cli.
+This document describes the testing setup for ghr (Go rewrite).
 
 ## Test Structure
 
 ```
-tests/
-├── lib/
-│   ├── git.test.js       # Tests for git module
-│   └── utils.test.js     # Tests for utility functions
-└── integration/
-    └── commands.test.js  # Integration tests
+internal/
+├── git/
+│   └── git_test.go       # Tests for git module
+└── utils/
+    └── utils_test.go     # Tests for utility functions
 ```
 
 ## Running Tests
 
 ### Run all tests
 ```bash
-npm test
-```
-
-### Run tests in watch mode
-```bash
-npm run test:watch
+go test -v ./...
 ```
 
 ### Run tests with coverage
 ```bash
-npm run test:coverage
+go test -v -race -coverprofile=coverage.out ./...
+
+# View coverage report
+go tool cover -func=coverage.out
+
+# Generate HTML coverage report
+go tool cover -html=coverage.out -o coverage.html
 ```
 
-### Run specific test file
+### Run specific package tests
 ```bash
-npm test git.test.js
+go test -v ./internal/git
+go test -v ./internal/utils
 ```
 
-### Run tests using the test script
+### Run specific test function
 ```bash
-bash scripts/test.sh
+go test -v -run TestParseRepo ./internal/git
 ```
 
 ## Test Coverage
 
 Current coverage targets:
 
-| Metric   | Target |
-|----------|--------|
-| Branches | 70%    |
-| Functions| 70%    |
-| Lines    | 70%    |
-| Statements| 70%   |
+| Metric    | Target |
+|-----------|--------|
+| Packages  | 100%   |
+| Functions | 70%    |
+| Lines     | 70%    |
 
 ## Writing Tests
 
@@ -59,64 +59,111 @@ Current coverage targets:
 
 Unit tests should:
 - Test individual functions in isolation
-- Mock external dependencies (file system, network, etc.)
+- Use table-driven tests for multiple test cases
 - Be fast and deterministic
+- Not depend on external services
 
 Example:
-```javascript
-describe('parseRepo', () => {
-  test('should parse valid owner/repo format', () => {
-    const result = parseRepo('facebook/react');
-    expect(result).toEqual({
-      owner: 'facebook',
-      name: 'react'
-    });
-  });
-});
+```go
+func TestParseRepo(t *testing.T) {
+    tests := []struct {
+        input    string
+        wantOwn  string
+        wantName string
+        wantErr  bool
+    }{
+        {"facebook/react", "facebook", "react", false},
+        {"invalid", "", "", true},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.input, func(t *testing.T) {
+            owner, name, err := ParseRepo(tt.input)
+            if tt.wantErr {
+                if err == nil {
+                    t.Errorf("ParseRepo(%q) expected error", tt.input)
+                }
+                return
+            }
+            if owner != tt.wantOwn || name != tt.wantName {
+                t.Errorf("ParseRepo(%q) = (%q, %q), want (%q, %q)",
+                    tt.input, owner, name, tt.wantOwn, tt.wantName)
+            }
+        })
+    }
+}
 ```
 
 ### Integration Tests
 
 Integration tests should:
 - Test multiple components working together
-- Use real Git operations (clone, fetch, etc.)
-- Be marked with longer timeouts
+- May use real Git operations (clone, fetch, etc.)
+- Be marked with longer timeouts if needed
+- Be in separate `_test.go` files or use build tags
 
 Example:
-```javascript
-describe('Repository Cloning', () => {
-  test('should clone a repository successfully', async () => {
-    const repoPath = await cloneRepo(testRepo, cacheDir);
-    expect(fs.existsSync(repoPath)).toBe(true);
-  }, 60000);
-});
+```go
+func TestCloneRepo_Integration(t *testing.T) {
+    if testing.Short() {
+        t.Skip("Skipping integration test in short mode")
+    }
+
+    cacheDir := t.TempDir()
+    repoPath, err := CloneRepo("octocat/Hello-World", cacheDir, "")
+    if err != nil {
+        t.Fatalf("CloneRepo failed: %v", err)
+    }
+
+    if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+        t.Errorf("Repository not cloned to %s", repoPath)
+    }
+}
 ```
 
 ## Linting
 
-### Run linter
+### Run go vet
 ```bash
-npm run lint
+go vet ./...
 ```
 
-### Fix linting issues automatically
+### Install and run golint
 ```bash
-npm run lint:fix
+go install golang.org/x/lint/golint@latest
+golint ./...
 ```
 
-## Pre-commit Hook
-
-Before committing, run the pre-commit checks:
-
+### Format code
 ```bash
-bash scripts/pre-commit.sh
+gofmt -s -w .
 ```
 
-Or install it as a Git hook:
+### Check formatting
+```bash
+if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+  echo "Please run 'gofmt -s -w .' to format your code"
+  gofmt -s -l .
+fi
+```
+
+## Pre-commit Checks
+
+Before committing, run the validation:
 
 ```bash
-ln -s ../../scripts/pre-commit.sh .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+# Format code
+gofmt -s -w .
+
+# Run linter
+go vet ./...
+
+# Run tests
+go test -v ./...
+
+# Check go.mod is tidy
+go mod tidy
+git diff --exit-code go.mod go.sum
 ```
 
 ## CI/CD
@@ -126,9 +173,11 @@ chmod +x .git/hooks/pre-commit
 The project uses GitHub Actions for continuous integration:
 
 - **CI**: Runs on every push and pull request
+  - Lint checks (go vet, formatting)
+  - Unit tests
+  - Cross-platform builds
 - **Release**: Runs on version tags
 - **Code Quality**: Runs weekly and on every push
-- **Dependency Update**: Runs weekly
 
 ### Local CI Testing
 
@@ -151,12 +200,10 @@ act -j test
 
 ### Tests timeout
 
-If tests timeout, increase the timeout in the test:
+If tests timeout, increase the timeout:
 
-```javascript
-test('slow test', async () => {
-  // ...
-}, 120000); // 2 minutes
+```bash
+go test -v -timeout 5m ./...
 ```
 
 ### Integration tests fail
@@ -166,11 +213,28 @@ Integration tests require network access to clone repositories. If they fail:
 1. Check your internet connection
 2. Check if GitHub is accessible
 3. Try a different test repository
+4. Run with `-short` flag to skip integration tests
 
 ### Coverage not generating
 
-Ensure `jest.config.js` is properly configured and run:
+Ensure tests are running correctly:
 
 ```bash
-npm run test:coverage
+go test -v -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+```
+
+### Module issues
+
+If you encounter module-related errors:
+
+```bash
+# Clean module cache
+go clean -modcache
+
+# Re-download dependencies
+go mod download
+
+# Verify modules
+go mod verify
 ```
