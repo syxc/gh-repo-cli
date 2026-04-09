@@ -45,8 +45,11 @@ jobs:
     - name: Install dependencies
       run: go mod download
 
-    - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./...
+    - name: Run tests with race detection
+      run: go test -v -race ./...
+
+    - name: Run tests with coverage
+      run: go test -v -coverprofile=coverage.out ./...
 
     - name: Check coverage
       run: go tool cover -func=coverage.out | grep total
