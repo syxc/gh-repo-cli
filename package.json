@@ -1,6 +1,6 @@
 {
-  "name": "gh-repo-cli",
-  "version": "0.1.0",
+  "name": "@oknian1/gh-repo-cli",
+  "version": "0.1.2",
   "description": "A lightweight CLI tool for analyzing GitHub repositories without API tokens",
   "main": "index.js",
   "bin": {

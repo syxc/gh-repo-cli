@@ -1,9 +1,9 @@
-# gh-repo-cli
+# gh-repo-cli (@oknian1/gh-repo-cli)
 
 > A lightweight CLI tool for analyzing GitHub repositories without API tokens
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/gh-repo-cli)](https://github.com/syxc/gh-repo-cli)
+[![Node.js Version](https://img.shields.io/node/v/@oknian1/gh-repo-cli)](https://github.com/syxc/gh-repo-cli)
 [![CI](https://github.com/syxc/gh-repo-cli/workflows/CI/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 [![Code Quality](https://github.com/syxc/gh-repo-cli/workflows/Code%20Quality/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 
@@ -139,15 +139,7 @@ ghr analyze tensorflow/tensorflow -o tf.json
 ## 📦 Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-
-# Install dependencies
-npm install
-
-# Link globally
-npm link
+npm install -g @oknian1/gh-repo-cli
 ```
 
 ## 🚀 Usage

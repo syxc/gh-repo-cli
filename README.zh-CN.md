@@ -3,7 +3,7 @@
 > 轻量级 GitHub 仓库分析工具，无需 API Token
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/gh-repo-cli)](https://github.com/syxc/gh-repo-cli)
+[![Node.js Version](https://img.shields.io/node/v/@oknian1/gh-repo-cli)](https://github.com/syxc/gh-repo-cli)
 [![CI](https://github.com/syxc/gh-repo-cli/workflows/CI/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 [![Code Quality](https://github.com/syxc/gh-repo-cli/workflows/Code%20Quality/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 
@@ -139,15 +139,7 @@ ghr analyze tensorflow/tensorflow -o tf.json
 ## 📦 安装
 
 ```bash
-# 克隆仓库
-git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-
-# 安装依赖
-npm install
-
-# 全局链接
-npm link
+npm install -g @oknian1/gh-repo-cli
 ```
 
 ## 🚀 使用方法

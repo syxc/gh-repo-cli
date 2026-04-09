@@ -15,10 +15,7 @@
 ### 1. 安装 gh-repo-cli
 
 ```bash
-git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-npm install
-npm link
+npm install -g @oknian1/gh-repo-cli
 ```
 
 ### 2. 添加配置到 CLAUDE.md
@@ -174,10 +171,7 @@ cat ~/.claude/CLAUDE.md
 
 **重新安装**:
 ```bash
-git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-npm install
-npm link
+npm install -g @oknian1/gh-repo-cli
 ```
 
 **验证安装**:

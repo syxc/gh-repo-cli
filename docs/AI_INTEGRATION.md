@@ -15,10 +15,7 @@ By adding gh-repo-cli usage rules to your `~/.claude/CLAUDE.md` global configura
 ### 1. Install gh-repo-cli
 
 ```bash
-git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-npm install
-npm link
+npm install -g @oknian1/gh-repo-cli
 ```
 
 ### 2. Add Configuration to CLAUDE.md
@@ -174,10 +171,7 @@ Should contain the "GitHub Repository Analysis Priority" section
 
 **Reinstall**:
 ```bash
-git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-npm install
-npm link
+npm install -g @oknian1/gh-repo-cli
 ```
 
 **Verify installation**:
