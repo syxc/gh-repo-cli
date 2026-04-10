@@ -2,7 +2,6 @@
   "name": "@oknian1/gh-repo-cli",
   "version": "0.2.0",
   "description": "A lightweight CLI tool for analyzing GitHub repositories without API tokens",
-  "main": "index.js",
   "bin": {
     "ghr": "./bin/ghr"
   },
