@@ -76,5 +76,5 @@ jobs:
         if [ "${{ matrix.goos }}" = "windows" ]; then
           output="${output}.exe"
         fi
-        go build -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd.Version=$(git describe --tags --always)" -o "${output}" .
+        go build -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd/root.Version=$(git describe --tags --always)" -o "${output}" ./cmd/ghr
         ls -la "${output}"

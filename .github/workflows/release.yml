@@ -57,8 +57,8 @@ jobs:
 
           echo "Building for $GOOS/$GOARCH..."
           GOOS=$GOOS GOARCH=$GOARCH go build \
-            -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd.Version=${VERSION}" \
-            -o "dist/${output}" .
+            -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd/root.Version=${VERSION}" \
+            -o "dist/${output}" ./cmd/ghr
         done
 
         ls -la dist/
