@@ -164,15 +164,21 @@ go build -o ghr .
 sudo mv ghr /usr/local/bin/
 ```
 
-### Option 4: Using npm
+### Option 4: Download Pre-built Binary
 
-For npm users, the package is available on the npm registry:
+Download the latest release for your platform:
 
 ```bash
-npm install -g @oknian1/gh-repo-cli
-```
+# macOS ARM64 (Apple Silicon)
+curl -L -o ghr.tar.gz "https://github.com/syxc/ghr/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/ghr/releases/latest | grep tag_name | cut -d'"' -f4)_darwin_arm64.tar.gz"
+tar -xzf ghr.tar.gz
+sudo mv ghr /usr/local/bin/
 
-This will automatically download the correct pre-built binary for your platform.
+# Linux AMD64
+curl -L -o ghr.tar.gz "https://github.com/syxc/ghr/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/ghr/releases/latest | grep tag_name | cut -d'"' -f4)_linux_amd64.tar.gz"
+tar -xzf ghr.tar.gz
+sudo mv ghr /usr/local/bin/
+```
 
 ## 🚀 Usage
 

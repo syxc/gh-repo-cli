@@ -164,15 +164,21 @@ go build -o ghr .
 sudo mv ghr /usr/local/bin/
 ```
 
-### 方式 4：使用 npm
+### 方式 4：下载预编译二进制
 
-对于 npm 用户，包已在 npm 仓库中可用：
+下载适合你平台的最新版本：
 
 ```bash
-npm install -g @oknian1/gh-repo-cli
-```
+# macOS ARM64 (Apple Silicon)
+curl -L -o ghr.tar.gz "https://github.com/syxc/ghr/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/ghr/releases/latest | grep tag_name | cut -d'"' -f4)_darwin_arm64.tar.gz"
+tar -xzf ghr.tar.gz
+sudo mv ghr /usr/local/bin/
 
-这将自动下载适合你平台的预编译二进制文件。
+# Linux AMD64
+curl -L -o ghr.tar.gz "https://github.com/syxc/ghr/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/ghr/releases/latest | grep tag_name | cut -d'"' -f4)_linux_amd64.tar.gz"
+tar -xzf ghr.tar.gz
+sudo mv ghr /usr/local/bin/
+```
 
 ## 🚀 使用方法
 
