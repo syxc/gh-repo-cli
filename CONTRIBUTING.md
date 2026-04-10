@@ -30,7 +30,7 @@ When suggesting enhancements:
 #### 1. Fork and Clone
 
 ```bash
-git clone https://github.com/syxc/ghr.git
+git clone https://github.com/syxc/gh-repo-cli.git
 cd ghr
 go mod download
 ```
@@ -98,7 +98,7 @@ Then create a pull request on GitHub with:
 ### Installation
 
 ```bash
-git clone https://github.com/syxc/ghr.git
+git clone https://github.com/syxc/gh-repo-cli.git
 cd ghr
 go mod download
 go build -o ghr .

@@ -22,7 +22,7 @@ go install github.com/syxc/gh-repo-cli@latest
 **方式 B: 下载二进制文件**
 ```bash
 # macOS/Linux
-curl -L -o ghr "https://github.com/syxc/ghr/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
+curl -L -o ghr "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
 chmod +x ghr
 sudo mv ghr /usr/local/bin/
 ```

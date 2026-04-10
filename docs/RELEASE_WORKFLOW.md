@@ -453,7 +453,7 @@ After each release:
 
 ```bash
 # 1. Download the release binary
-wget https://github.com/syxc/ghr/releases/download/v1.0.0/ghr-v1.0.0-$(uname -s)-$(uname -m).tar.gz
+wget https://github.com/syxc/gh-repo-cli/releases/download/v1.0.0/ghr-v1.0.0-$(uname -s)-$(uname -m).tar.gz
 
 # 2. Verify checksum
 sha256sum -c checksums.txt
@@ -573,7 +573,7 @@ jobs:
           fi
           
           GOOS=$GOOS GOARCH=$GOARCH go build \
-            -ldflags="-s -w -X github.com/syxc/ghr/cmd.Version=${VERSION}" \
+            -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd.Version=${VERSION}" \
             -o "dist/${output}" .
         done
 
@@ -628,7 +628,7 @@ jobs:
 
 <div align="center">
 
-**Need Help?** Open an issue: [github.com/syxc/ghr/issues](https://github.com/syxc/ghr/issues)
+**Need Help?** Open an issue: [github.com/syxc/gh-repo-cli/issues](https://github.com/syxc/gh-repo-cli/issues)
 
 **Happy Releasing! 🚀**
 

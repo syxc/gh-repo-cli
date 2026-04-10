@@ -3,7 +3,7 @@
 > 轻量级 GitHub 仓库分析工具，无需 API Token
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/go-%3E%3D1.23-blue)](https://github.com/syxc/ghr)
+[![Go Version](https://img.shields.io/badge/go-%3E%3D1.23-blue)](https://github.com/syxc/gh-repo-cli)
 [![CI](https://github.com/syxc/gh-repo-cli/workflows/CI/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 [![Code Quality](https://github.com/syxc/gh-repo-cli/workflows/Code%20Quality/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 
@@ -146,11 +146,11 @@ go install github.com/syxc/gh-repo-cli@latest
 
 ### 方式 2：下载预编译二进制文件
 
-从 [Releases](https://github.com/syxc/ghr/releases) 页面下载适合你平台的最新版本。
+从 [Releases](https://github.com/syxc/gh-repo-cli/releases) 页面下载适合你平台的最新版本。
 
 ```bash
 # 示例：macOS ARM64
-curl -L -o ghr "https://github.com/syxc/ghr/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
+curl -L -o ghr "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
 chmod +x ghr
 sudo mv ghr /usr/local/bin/
 ```
@@ -158,7 +158,7 @@ sudo mv ghr /usr/local/bin/
 ### 方式 3：从源码构建
 
 ```bash
-git clone https://github.com/syxc/ghr.git
+git clone https://github.com/syxc/gh-repo-cli.git
 cd ghr
 go build -o ghr .
 sudo mv ghr /usr/local/bin/
@@ -170,12 +170,12 @@ sudo mv ghr /usr/local/bin/
 
 ```bash
 # macOS ARM64 (Apple Silicon)
-curl -L -o ghr.tar.gz "https://github.com/syxc/ghr/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/ghr/releases/latest | grep tag_name | cut -d'"' -f4)_darwin_arm64.tar.gz"
+curl -L -o ghr.tar.gz "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/gh-repo-cli/releases/latest | grep tag_name | cut -d'"' -f4)_darwin_arm64.tar.gz"
 tar -xzf ghr.tar.gz
 sudo mv ghr /usr/local/bin/
 
 # Linux AMD64
-curl -L -o ghr.tar.gz "https://github.com/syxc/ghr/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/ghr/releases/latest | grep tag_name | cut -d'"' -f4)_linux_amd64.tar.gz"
+curl -L -o ghr.tar.gz "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/gh-repo-cli/releases/latest | grep tag_name | cut -d'"' -f4)_linux_amd64.tar.gz"
 tar -xzf ghr.tar.gz
 sudo mv ghr /usr/local/bin/
 ```
