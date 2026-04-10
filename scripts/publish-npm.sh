@@ -79,21 +79,21 @@ echo ""
 # Verify binaries exist in release
 print_info "Verifying release binaries..."
 
+# Get asset list from GitHub API
+ASSETS=$(curl -s "https://api.github.com/repos/syxc/gh-repo-cli/releases/tags/v${VERSION}" | jq -r '.assets | .[].name')
+
 PLATFORMS=("linux_amd64" "linux_arm64" "darwin_amd64" "darwin_arm64" "windows_amd64")
 MISSING=()
 
 for platform in "${PLATFORMS[@]}"; do
-    url="https://github.com/syxc/gh-repo-cli/releases/download/v${VERSION}/ghr_${VERSION}_${platform}.tar.gz"
-    if ! curl -sI "$url" | grep -q "200 OK"; then
-        if [ "$platform" = "windows_amd64" ]; then
-            # Windows uses zip
-            url="https://github.com/syxc/gh-repo-cli/releases/download/v${VERSION}/ghr_${VERSION}_${platform}.zip"
-            if ! curl -sI "$url" | grep -q "200 OK"; then
-                MISSING+=("$platform")
-            fi
-        else
-            MISSING+=("$platform")
-        fi
+    if [ "$platform" = "windows_amd64" ]; then
+        expected="ghr_${VERSION}_${platform}.zip"
+    else
+        expected="ghr_${VERSION}_${platform}.tar.gz"
+    fi
+    
+    if ! echo "$ASSETS" | grep -q "^${expected}$"; then
+        MISSING+=("$platform")
     fi
 done
 
@@ -101,12 +101,7 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     print_error "Missing binaries for platforms: ${MISSING[*]}"
     echo ""
     echo "Available binaries:"
-    curl -s "https://api.github.com/repos/syxc/gh-repo-cli/releases/tags/v${VERSION}" | \
-        grep -o '"browser_download_url": "[^"]*"' | \
-        sed 's/"browser_download_url": "//' | sed 's/"$//' | \
-        while read -r url; do
-            echo "  - $(basename "$url")"
-        done
+    echo "$ASSETS" | grep -v "checksums.txt" | sed 's/^/  - /'
     exit 1
 fi
 
