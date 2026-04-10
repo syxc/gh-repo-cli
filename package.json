@@ -15,8 +15,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "postinstall": "go-npm install",
-    "preuninstall": "go-npm uninstall",
+    "postinstall": "node scripts/install-binary.js",
+    "preuninstall": "rm -f bin/ghr bin/ghr.exe",
     "test": "go test ./...",
     "build": "go build -o ghr ."
   },
@@ -38,9 +38,7 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "dependencies": {
-    "go-npm": "^0.1.9"
-  },
+  "dependencies": {}
   "repository": {
     "type": "git",
     "url": "https://github.com/syxc/gh-repo-cli.git"
