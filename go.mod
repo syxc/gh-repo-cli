@@ -1,4 +1,4 @@
-module github.com/syxc/ghr
+module github.com/syxc/gh-repo-cli
 
 go 1.26.2
 

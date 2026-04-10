@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	"github.com/syxc/ghr/cmd"
+	"github.com/syxc/gh-repo-cli/cmd"
 )
 
 func main() {

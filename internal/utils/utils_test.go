@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/syxc/ghr/internal/utils"
+	"github.com/syxc/gh-repo-cli/internal/utils"
 )
 
 func TestReadFileContent(t *testing.T) {

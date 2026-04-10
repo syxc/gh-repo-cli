@@ -141,7 +141,7 @@ ghr analyze tensorflow/tensorflow -o tf.json
 ### Option 1: Using go install (Recommended)
 
 ```bash
-go install github.com/syxc/ghr@latest
+go install github.com/syxc/gh-repo-cli@latest
 ```
 
 ### Option 2: Download Pre-built Binary

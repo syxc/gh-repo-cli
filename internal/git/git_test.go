@@ -3,7 +3,7 @@ package git_test
 import (
 	"testing"
 
-	"github.com/syxc/ghr/internal/git"
+	"github.com/syxc/gh-repo-cli/internal/git"
 )
 
 func TestParseRepo(t *testing.T) {

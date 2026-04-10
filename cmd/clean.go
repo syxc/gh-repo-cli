@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/syxc/ghr/internal/git"
-	"github.com/syxc/ghr/internal/utils"
+	"github.com/syxc/gh-repo-cli/internal/git"
+	"github.com/syxc/gh-repo-cli/internal/utils"
 )
 
 var (

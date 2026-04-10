@@ -141,7 +141,7 @@ ghr analyze tensorflow/tensorflow -o tf.json
 ### 方式 1：使用 go install（推荐）
 
 ```bash
-go install github.com/syxc/ghr@latest
+go install github.com/syxc/gh-repo-cli@latest
 ```
 
 ### 方式 2：下载预编译二进制文件
