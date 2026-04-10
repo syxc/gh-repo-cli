@@ -38,7 +38,7 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "dependencies": {}
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/syxc/gh-repo-cli.git"
