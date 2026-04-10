@@ -19,6 +19,15 @@ By adding ghr usage rules to your `~/.claude/CLAUDE.md` global configuration fil
 go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
+**Add to PATH (first time only):**
+```bash
+# macOS (zsh): Add to ~/.zshenv
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv && source ~/.zshenv
+
+# Linux (bash): Add to ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc && source ~/.bashrc
+```
+
 **Option B: Download Binary**
 ```bash
 # macOS/Linux

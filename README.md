@@ -146,14 +146,24 @@ go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
 **Add to PATH (first time only):**
+
+macOS (zsh):
 ```bash
-# For bash/zsh
-export PATH=$PATH:$(go env GOPATH)/bin
+# Add to ~/.zshenv (创建文件如果不存在)
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv
+source ~/.zshenv
+```
 
-# For fish
-set -x PATH $PATH (go env GOPATH)/bin
+Linux (bash):
+```bash
+# Add to ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+source ~/.bashrc
+```
 
-# To make it permanent, add to ~/.bashrc, ~/.zshrc, or ~/.config/fish/config.fish
+Fish:
+```bash
+set -Ux PATH $PATH (go env GOPATH)/bin
 ```
 
 ### Option 2: Download Pre-built Binary

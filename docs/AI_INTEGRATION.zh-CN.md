@@ -19,6 +19,15 @@
 go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
+**添加到 PATH（首次安装）：**
+```bash
+# macOS (zsh): 添加到 ~/.zshenv
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv && source ~/.zshenv
+
+# Linux (bash): 添加到 ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc && source ~/.bashrc
+```
+
 **方式 B: 下载二进制文件**
 ```bash
 # macOS/Linux
