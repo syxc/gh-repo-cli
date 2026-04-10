@@ -23,8 +23,8 @@ Thumbs.db
 dist/
 *.zip
 *.tar.gz
-ghr
-ghr-*
+/ghr
+/ghr-*
 
 # Go workspace file
 go.work
