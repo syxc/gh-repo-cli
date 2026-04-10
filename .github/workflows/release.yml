@@ -70,11 +70,15 @@ jobs:
 
         for file in ghr_*; do
           if [[ "$file" == *.exe ]]; then
-            # Windows: create zip with the same basename
-            zip "${file%.exe}.zip" "$file"
+            # Windows: rename to ghr.exe then zip
+            mv "$file" ghr.exe
+            zip "${file%.exe}.zip" ghr.exe
+            mv ghr.exe "$file"
           else
-            # Unix: create tar.gz
-            tar -czf "${file}.tar.gz" "$file"
+            # Unix: rename to ghr then tar
+            mv "$file" ghr
+            tar -czf "${file}.tar.gz" ghr
+            mv ghr "$file"
           fi
         done
 
