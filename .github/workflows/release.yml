@@ -49,7 +49,8 @@ jobs:
 
         for platform in "${platforms[@]}"; do
           IFS='/' read -r GOOS GOARCH <<< "$platform"
-          output="ghr-${VERSION}-${GOOS}-${GOARCH}"
+          # Output format for go-npm compatibility: ghr_{{version}}_{{platform}}_{{arch}}
+          output="ghr_${VERSION}_${GOOS}_${GOARCH}"
           if [ "$GOOS" = "windows" ]; then
             output="${output}.exe"
           fi
@@ -67,10 +68,12 @@ jobs:
         VERSION=${GITHUB_REF#refs/tags/v}
         cd dist
 
-        for file in ghr-*; do
+        for file in ghr_*; do
           if [[ "$file" == *.exe ]]; then
+            # Windows: create zip with the same basename
             zip "${file%.exe}.zip" "$file"
           else
+            # Unix: create tar.gz
             tar -czf "${file}.tar.gz" "$file"
           fi
         done
