@@ -1,5 +1,5 @@
-// Package cmd provides the CLI commands
-package cmd
+// Package root provides the CLI commands
+package root
 
 import (
 	"github.com/spf13/cobra"
