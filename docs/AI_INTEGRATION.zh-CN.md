@@ -1,19 +1,42 @@
 # Claude Code 集成指南
 
-> gh-repo-cli 与 Claude Code 结合使用的最佳实践
+> ghr 与 Claude Code 结合使用的最佳实践
 
 ## 核心理念
 
 **让 AI 主动判断何时使用工具，而不是手动调用。**
 
-将 gh-repo-cli 的使用规则添加到你的 `~/.claude/CLAUDE.md` 全局配置文件中，Claude Code 会自动检测何时需要分析 GitHub 仓库。
+将 ghr 的使用规则添加到你的 `~/.claude/CLAUDE.md` 全局配置文件中，Claude Code 会自动检测何时需要分析 GitHub 仓库。
 
 ---
 
 ## 快速配置
 
-### 1. 安装 gh-repo-cli
+### 1. 安装 ghr
 
+**方式 A: 使用 go install（推荐）**
+```bash
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+```
+
+**添加到 PATH（首次安装）：**
+```bash
+# macOS (zsh): 添加到 ~/.zshenv
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv && source ~/.zshenv
+
+# Linux (bash): 添加到 ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc && source ~/.bashrc
+```
+
+**方式 B: 下载二进制文件**
+```bash
+# macOS/Linux
+curl -L -o ghr "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
+chmod +x ghr
+sudo mv ghr /usr/local/bin/
+```
+
+**方式 C: 使用 npm（遗留）**
 ```bash
 npm install -g @oknian1/gh-repo-cli
 ```
@@ -25,10 +48,10 @@ npm install -g @oknian1/gh-repo-cli
 ```
 # GitHub 仓库分析优先级
 
-GLM MCP (zread): 有限配额 ❌
-gh-repo-cli: 完全免费 ✅
+MCP (zread): 有限配额 ❌
+ghr: 完全免费 ✅
 
-触发规则（用户输入匹配 → 使用 gh-repo-cli）:
+触发规则（用户输入匹配 → 使用 ghr）:
 - github.com/ 链接
 - "github 仓库" | "分析.*仓库" | "仓库.*分析"
 - "查看.*代码" | "阅读.*源码" | "clone.*github"
@@ -41,8 +64,8 @@ ghr structure <owner/repo>         # 获取结构
 ghr read <owner/repo> <file>       # 读取文件
 ghr readme <owner/repo>            # 读取 README
 
-MCP 备用条件（仅在以下情况使用 zread MCP）:
-1. 私有仓库（gh-repo-cli 仅支持公开仓库）
+MCP 备用条件（仅在以下情况使用 MCP）:
+1. 私有仓库（ghr 仅支持公开仓库）
 2. 需要 git 历史
 3. 用户明确要求使用 MCP
 ```
@@ -58,13 +81,14 @@ Claude Code: [自动运行 ghr analyze vercel/next.js 并分析]
 
 ## 对比优势
 
-| 方面 | MCP 服务器 | gh-repo-cli |
-|------|-----------|-------------|
+| 方面 | MCP 服务器 | ghr |
+|------|-----------|-----|
 | **使用配额** | 100-500 次/月 ❌ | 无限 ✅ |
 | **速率限制** | 60 请求/小时 ❌ | 无限制 ✅ |
 | **费用** | $10-50/月 ❌ | 完全免费 ✅ |
 | **隐私** | 代码发送到第三方 ❌ | 本地分析 ✅ |
 | **可靠性** | 依赖服务器 ❌ | 离线工作 ✅ |
+| **速度** | 依赖网络 ⚠️ | 本地缓存 ⚡ |
 
 ---
 
@@ -154,11 +178,21 @@ ghr read vercel/next.js packages/next/server/router.ts
 ghr analyze vercel/next.js --no-cache
 ```
 
+### 保存分析结果
+
+```bash
+# 保存为 JSON 供 AI 处理
+ghr analyze facebook/react -o react-analysis.json
+
+# 然后在对话中引用：
+# "@react-analysis.json 解释代码库架构"
+```
+
 ---
 
 ## 故障排查
 
-### Claude 没有使用 gh-repo-cli
+### Claude 没有使用 ghr
 
 **检查配置**:
 ```bash
@@ -169,21 +203,25 @@ cat ~/.claude/CLAUDE.md
 
 ### ghr 命令未找到
 
-**重新安装**:
+**检查安装**:
 ```bash
-npm install -g @oknian1/gh-repo-cli
-```
+# 如果使用 go install
+export PATH=$PATH:$(go env GOPATH)/bin
 
-**验证安装**:
-```bash
+# 验证安装
 which ghr
-# 应输出: /usr/local/bin/ghr
+ghr --version
 ```
 
-### Claude 使用 MCP 而不是 gh-repo-cli
+**如需重新安装**:
+```bash
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+```
+
+### Claude 使用 MCP 而不是 ghr
 
 这是**预期行为**！以下情况会自动降级到 MCP：
-1. 私有仓库
+1. 私有仓库（ghr 仅支持公开仓库）
 2. 需要 git 历史记录
 3. 用户明确要求使用 MCP
 
@@ -192,7 +230,7 @@ which ghr
 ## 总结
 
 **配置一次，永久生效**：
-1. 安装 gh-repo-cli（1 分钟）
+1. 安装 ghr（1 分钟）
 2. 添加配置到 CLAUDE.md（10 秒）
 3. 自然对话即可使用（零学习）
 
@@ -201,11 +239,12 @@ which ghr
 - ✅ 无限使用，完全免费
 - ✅ 本地分析，隐私安全
 - ✅ 智能降级，兼容私有仓库
+- ✅ Go 编写，快速可靠
 
 ---
 
 <div align="center">
 
-**CLAUDE.md 指令 + gh-repo-cli = 自动仓库分析** 🚀
+**CLAUDE.md 指令 + ghr = 自动仓库分析** 🚀
 
 </div>

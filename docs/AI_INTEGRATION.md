@@ -1,19 +1,42 @@
 # Claude Code Integration
 
-> Best practices for using gh-repo-cli with Claude Code
+> Best practices for using ghr with Claude Code
 
 ## Core Philosophy
 
 **Let AI decide when to use tools, not manual invocation.**
 
-By adding gh-repo-cli usage rules to your `~/.claude/CLAUDE.md` global configuration file, Claude Code will automatically detect when GitHub repository analysis is needed.
+By adding ghr usage rules to your `~/.claude/CLAUDE.md` global configuration file, Claude Code will automatically detect when GitHub repository analysis is needed.
 
 ---
 
 ## Quick Setup
 
-### 1. Install gh-repo-cli
+### 1. Install ghr
 
+**Option A: Using go install (Recommended)**
+```bash
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+```
+
+**Add to PATH (first time only):**
+```bash
+# macOS (zsh): Add to ~/.zshenv
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv && source ~/.zshenv
+
+# Linux (bash): Add to ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc && source ~/.bashrc
+```
+
+**Option B: Download Binary**
+```bash
+# macOS/Linux
+curl -L -o ghr "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
+chmod +x ghr
+sudo mv ghr /usr/local/bin/
+```
+
+**Option C: Using npm (Legacy)**
 ```bash
 npm install -g @oknian1/gh-repo-cli
 ```
@@ -25,10 +48,10 @@ Edit `~/.claude/CLAUDE.md` file and add:
 ```
 # GitHub Repository Analysis Priority
 
-GLM MCP (zread): Limited quota ❌
-gh-repo-cli: Completely free ✅
+MCP (zread): Limited quota ❌
+ghr: Completely free ✅
 
-Trigger rules (user input matches → use gh-repo-cli):
+Trigger rules (user input matches → use ghr):
 - github.com/ links
 - "github repository" | "analyze.*repository" | "repository.*analysis"
 - "view.*code" | "read.*source" | "clone.*github"
@@ -42,7 +65,7 @@ ghr read <owner/repo> <file>       # Read file
 ghr readme <owner/repo>            # Read README
 
 MCP fallback conditions (only use zread MCP when):
-1. Private repository (gh-repo-cli only supports public repositories)
+1. Private repository (ghr only supports public repositories)
 2. Git history needed
 3. User explicitly requests MCP
 ```
@@ -58,13 +81,14 @@ Claude Code: [Automatically runs ghr analyze vercel/next.js and analyzes]
 
 ## Comparative Advantages
 
-| Aspect | MCP Server | gh-repo-cli |
-|--------|-----------|-------------|
+| Aspect | MCP Server | ghr |
+|--------|-----------|-----|
 | **Usage Quota** | 100-500 times/month ❌ | Unlimited ✅ |
 | **Rate Limit** | 60 requests/hour ❌ | No limit ✅ |
 | **Cost** | $10-50/month ❌ | Completely free ✅ |
 | **Privacy** | Code sent to third party ❌ | Local analysis ✅ |
 | **Reliability** | Server dependent ❌ | Works offline ✅ |
+| **Speed** | Network dependent ⚠️ | Local cache ⚡ |
 
 ---
 
@@ -154,11 +178,21 @@ ghr read vercel/next.js packages/next/server/router.ts
 ghr analyze vercel/next.js --no-cache
 ```
 
+### Save Analysis Results
+
+```bash
+# Save to JSON for AI processing
+ghr analyze facebook/react -o react-analysis.json
+
+# Then reference in conversation:
+# "@react-analysis.json Explain the codebase architecture"
+```
+
 ---
 
 ## Troubleshooting
 
-### Claude Isn't Using gh-repo-cli
+### Claude Isn't Using ghr
 
 **Check configuration**:
 ```bash
@@ -169,21 +203,25 @@ Should contain the "GitHub Repository Analysis Priority" section
 
 ### ghr Command Not Found
 
-**Reinstall**:
+**Check installation**:
 ```bash
-npm install -g @oknian1/gh-repo-cli
-```
+# If installed via go install
+export PATH=$PATH:$(go env GOPATH)/bin
 
-**Verify installation**:
-```bash
+# Verify installation
 which ghr
-# Should output: /usr/local/bin/ghr
+ghr --version
 ```
 
-### Claude Uses MCP Instead of gh-repo-cli
+**Reinstall if needed**:
+```bash
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+```
+
+### Claude Uses MCP Instead of ghr
 
 This is **expected behavior**! Automatically falls back to MCP when:
-1. Private repository
+1. Private repository (ghr only supports public repos)
 2. Git history needed
 3. User explicitly requests MCP
 
@@ -192,7 +230,7 @@ This is **expected behavior**! Automatically falls back to MCP when:
 ## Summary
 
 **Configure once, use forever**:
-1. Install gh-repo-cli (1 minute)
+1. Install ghr (1 minute)
 2. Add configuration to CLAUDE.md (10 seconds)
 3. Natural conversation to use (zero learning)
 
@@ -201,11 +239,12 @@ This is **expected behavior**! Automatically falls back to MCP when:
 - ✅ Unlimited usage, completely free
 - ✅ Local analysis, privacy secure
 - ✅ Smart fallback, supports private repos
+- ✅ Written in Go, fast and reliable
 
 ---
 
 <div align="center">
 
-**CLAUDE.md instructions + gh-repo-cli = Automatic repository analysis** 🚀
+**CLAUDE.md instructions + ghr = Automatic repository analysis** 🚀
 
 </div>

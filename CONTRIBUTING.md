@@ -1,6 +1,6 @@
-# Contributing to gh-repo-cli
+# Contributing to ghr
 
-Thank you for your interest in contributing to gh-repo-cli!
+Thank you for your interest in contributing to ghr!
 
 ## How to Contribute
 
@@ -12,7 +12,7 @@ When creating a bug report, include:
 - **Clear title and description**
 - **Steps to reproduce** the issue
 - **Expected behavior** vs **actual behavior**
-- **Environment details** (OS, Node version, etc.)
+- **Environment details** (OS, Go version, etc.)
 - **Screenshots** if applicable
 
 ### Suggesting Enhancements
@@ -31,8 +31,8 @@ When suggesting enhancements:
 
 ```bash
 git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-npm install
+cd ghr
+go mod download
 ```
 
 #### 2. Create a Branch
@@ -48,11 +48,12 @@ git checkout -b fix/your-bug-fix
 - Follow the existing code style
 - Add tests for new features
 - Update documentation as needed
-- Run tests and linter
+- Run tests and linting
 
 ```bash
-npm run lint
-npm test
+go vet ./...
+go test -v ./...
+gofmt -s -w .
 ```
 
 #### 4. Commit Changes
@@ -91,110 +92,135 @@ Then create a pull request on GitHub with:
 
 ### Prerequisites
 
-- Node.js >= 14.0.0
+- Go >= 1.23
 - Git
-- npm
 
 ### Installation
 
 ```bash
 git clone https://github.com/syxc/gh-repo-cli.git
-cd gh-repo-cli
-npm install
-npm link
+cd ghr
+go mod download
+go build -o ghr .
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-npm test
+go test -v ./...
 
 # Run with coverage
-npm run test:coverage
+go test -v -race -coverprofile=coverage.out ./...
 
-# Run in watch mode
-npm run test:watch
+# View coverage report
+go tool cover -func=coverage.out
+go tool cover -html=coverage.out
 
-# Run specific test file
-npm test -- git.test.js
+# Run specific package tests
+go test -v ./internal/git
+go test -v ./internal/utils
 ```
-
-See [docs/TESTING.md](docs/TESTING.md) for detailed testing information.
 
 ### Linting
 
 ```bash
-# Check for issues
-npm run lint
+# Run go vet
+go vet ./...
 
-# Fix automatically
-npm run lint:fix
+# Install and run golint
+go install golang.org/x/lint/golint@latest
+golint ./...
+
+# Format code
+gofmt -s -w .
+
+# Check formatting
+if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+  echo "Please run 'gofmt -s -w .' to format your code"
+  gofmt -s -l .
+fi
 ```
 
 ### Pre-commit Checks
 
-Before committing, run the validation script:
+Before committing, run the validation:
 
 ```bash
-npm run validate
-```
+# Format code
+gofmt -s -w .
 
-Or use the pre-commit script:
+# Run linter
+go vet ./...
 
-```bash
-bash scripts/pre-commit.sh
+# Run tests
+go test -v ./...
+
+# Check go.mod is tidy
+go mod tidy
+git diff --exit-code go.mod go.sum
 ```
 
 ## Code Style
 
-- Use 2 spaces for indentation
-- Use single quotes for strings
-- Add semicolons
-- Write meaningful comments
+- Use `gofmt` for formatting
+- Follow standard Go conventions
+- Write meaningful comments (exported functions must have doc comments)
 - Keep functions small and focused
+- Handle errors explicitly
+- Use meaningful variable names
 
 ### Example
 
-```javascript
+```go
 // Good
-function parseRepo(repo) {
-  const [owner, name] = repo.split('/');
-  if (!owner || !name) {
-    throw new Error(`Invalid repo format: ${repo}`);
-  }
-  return { owner, name };
+// ParseRepo parses the owner/repo format and returns the components.
+func ParseRepo(repo string) (owner, name string, err error) {
+    parts := strings.Split(repo, "/")
+    if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+        return "", "", fmt.Errorf("invalid repo format: %s", repo)
+    }
+    return parts[0], parts[1], nil
 }
 
 // Bad
-function parseRepo(r){
-  var o=r.split('/')
-  return {owner:o[0],name:o[1]}
+func parseRepo(r string) (string, string, error) {
+    p := strings.Split(r, "/")
+    return p[0], p[1], nil
 }
 ```
 
 ## Project Structure
 
 ```
-gh-repo-cli/
-├── commands/       # CLI commands
-│   ├── analyze.js
-│   ├── search.js
-│   ├── structure.js
-│   ├── read.js
-│   ├── readme.js
-│   └── clean.js
-├── lib/           # Core utilities
-│   ├── git.js
-│   └── utils.js
-├── tests/         # Test files
-│   ├── lib/
-│   └── integration/
-├── scripts/       # Build and utility scripts
-├── docs/          # Documentation
-├── .github/       # GitHub workflows and templates
-│   └── workflows/ # CI/CD configurations
-└── index.js       # Main entry point
+ghr/
+├── cmd/                  # CLI commands (Cobra)
+│   ├── root.go
+│   ├── analyze.go
+│   ├── search.go
+│   ├── structure.go
+│   ├── read.go
+│   ├── readme.go
+│   └── clean.go
+├── internal/             # Internal packages
+│   ├── config/          # Configuration management
+│   │   └── config.go
+│   ├── git/             # Git operations
+│   │   ├── git.go
+│   │   └── git_test.go
+│   └── utils/           # Utility functions
+│       ├── file.go
+│       ├── output.go
+│       ├── search.go
+│       └── utils_test.go
+├── docs/                 # Documentation
+├── scripts/              # Build and utility scripts
+├── .github/              # GitHub workflows and templates
+│   └── workflows/        # CI/CD configurations
+├── go.mod               # Go module definition
+├── go.sum               # Go module checksums
+├── main.go              # Main entry point
+└── README.md            # Project documentation
 ```
 
 ## Testing Guidelines
@@ -203,14 +229,47 @@ gh-repo-cli/
 - Maintain test coverage above 70%
 - Unit tests for individual functions
 - Integration tests for complete workflows
+- Use table-driven tests where appropriate
 - Use meaningful test descriptions
+
+### Example Test
+
+```go
+func TestParseRepo(t *testing.T) {
+    tests := []struct {
+        input    string
+        wantOwn  string
+        wantName string
+        wantErr  bool
+    }{
+        {"facebook/react", "facebook", "react", false},
+        {"invalid", "", "", true},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.input, func(t *testing.T) {
+            owner, name, err := ParseRepo(tt.input)
+            if tt.wantErr {
+                if err == nil {
+                    t.Errorf("ParseRepo(%q) expected error", tt.input)
+                }
+                return
+            }
+            if owner != tt.wantOwn || name != tt.wantName {
+                t.Errorf("ParseRepo(%q) = (%q, %q), want (%q, %q)",
+                    tt.input, owner, name, tt.wantOwn, tt.wantName)
+            }
+        })
+    }
+}
+```
 
 ## Documentation
 
 - Update README.md for user-facing changes
-- Add JSDoc comments for functions
+- Add doc comments for exported functions (required by Go conventions)
 - Update CHANGELOG.md for releases
-- Keep API documentation current
+- Keep AI_INTEGRATION.md current if changing AI-related features
 
 ## Getting Help
 

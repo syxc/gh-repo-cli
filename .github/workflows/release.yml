@@ -13,38 +13,90 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
       with:
-        node-version: '18.x'
+        go-version: '1.23'
+        cache: true
 
     - name: Install dependencies
-      run: npm install
+      run: go mod download
 
     - name: Run tests
-      run: npm test
+      run: go test -v ./...
 
     - name: Run linter
-      run: npm run lint
+      run: |
+        go vet ./...
+        go install golang.org/x/lint/golint@latest
+        golint ./...
 
-    - name: Create package
+    - name: Build binaries
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
-        bash scripts/package.sh ${VERSION}
+        mkdir -p dist
 
-    - name: Generate checksum
+        # Build for multiple platforms
+        platforms=(
+          "linux/amd64"
+          "linux/arm64"
+          "darwin/amd64"
+          "darwin/arm64"
+          "windows/amd64"
+        )
+
+        for platform in "${platforms[@]}"; do
+          IFS='/' read -r GOOS GOARCH <<< "$platform"
+          # Output format for go-npm compatibility: ghr_{{version}}_{{platform}}_{{arch}}
+          output="ghr_${VERSION}_${GOOS}_${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            output="${output}.exe"
+          fi
+
+          echo "Building for $GOOS/$GOARCH..."
+          GOOS=$GOOS GOARCH=$GOARCH go build \
+            -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd/root.Version=${VERSION}" \
+            -o "dist/${output}" ./cmd/ghr
+        done
+
+        ls -la dist/
+
+    - name: Create archives
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
-        sha256sum "gh-repo-cli-v${VERSION}.zip" > "gh-repo-cli-v${VERSION}.zip.sha256"
+        cd dist
+
+        for file in ghr_*; do
+          if [[ "$file" == *.exe ]]; then
+            # Windows: rename to ghr.exe then zip
+            mv "$file" ghr.exe
+            zip "${file%.exe}.zip" ghr.exe
+            mv ghr.exe "$file"
+          else
+            # Unix: rename to ghr then tar
+            mv "$file" ghr
+            tar -czf "${file}.tar.gz" ghr
+            mv ghr "$file"
+          fi
+        done
+
+        ls -la
+
+    - name: Generate checksums
+      run: |
+        cd dist
+        sha256sum *.tar.gz *.zip > checksums.txt
+        cat checksums.txt
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          gh-repo-cli-v*.zip
-          gh-repo-cli-v*.zip.sha256
+          dist/*.tar.gz
+          dist/*.zip
+          dist/checksums.txt
         generate_release_notes: true
         draft: false
         prerelease: false

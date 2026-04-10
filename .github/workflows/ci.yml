@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ master, develop, 'refactor/**' ]
   pull_request:
     branches: [ master, develop ]
 
@@ -11,35 +11,70 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
       with:
-        node-version: '18.x'
-        cache: 'npm'
+        go-version: '1.23'
+        cache: false
 
     - name: Install dependencies
-      run: npm install
+      run: go mod download
 
-    - name: Run linter
-      run: npm run lint
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run golint
+      run: |
+        go install golang.org/x/lint/golint@latest
+        golint ./...
 
   test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
       with:
-        node-version: '18.x'
-        cache: 'npm'
+        go-version: '1.23'
+        cache: false
 
     - name: Install dependencies
-      run: npm install
+      run: go mod download
 
-    - name: Run unit tests
-      run: npm test
+    - name: Run tests
+      run: go test -v -race ./...
 
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: false
+
+    - name: Build
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        output="ghr-${{ matrix.goos }}-${{ matrix.goarch }}"
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          output="${output}.exe"
+        fi
+        go build -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd/root.Version=$(git describe --tags --always)" -o "${output}" ./cmd/ghr
+        ls -la "${output}"

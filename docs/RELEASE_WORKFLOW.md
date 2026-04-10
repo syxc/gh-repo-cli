@@ -1,6 +1,6 @@
 # Release Workflow Configuration Guide
 
-> Complete guide for configuring and triggering automated releases for gh-repo-cli
+> Complete guide for configuring and triggering automated releases for ghr
 
 ## 📚 Table of Contents
 
@@ -15,14 +15,15 @@
 
 ## Overview
 
-The gh-repo-cli project uses GitHub Actions for automated releases. When you push a version tag, the workflow automatically:
+The ghr project uses GitHub Actions for automated releases. When you push a version tag, the workflow automatically:
 
 1. ✅ Runs all tests
 2. ✅ Runs linter checks
-3. ✅ Creates a distributable package
-4. ✅ Generates SHA256 checksum
-5. ✅ Creates a GitHub Release with assets
-6. ✅ Auto-generates release notes
+3. ✅ Builds binaries for multiple platforms (Linux, macOS, Windows)
+4. ✅ Creates archives (.tar.gz, .zip)
+5. ✅ Generates SHA256 checksums
+6. ✅ Creates a GitHub Release with assets
+7. ✅ Auto-generates release notes
 
 **Workflow File**: `.github/workflows/release.yml`
 
@@ -74,32 +75,28 @@ You can verify the workflow has the correct permissions:
 
 #### Step 1: Update Version
 
-Update the version in `package.json`:
+Update the version in `cmd/root.go`:
 
 ```bash
-# Edit package.json
-{
-  "name": "gh-repo-cli",
-  "version": "1.1.0",  # Update this
-  ...
-}
+# Edit cmd/root.go
+var Version = "1.0.0"  // Update this
 ```
 
 #### Step 2: Commit Changes
 
 ```bash
-git add package.json
-git commit -m "chore: bump version to 1.1.0"
+git add cmd/root.go
+git commit -m "chore: bump version to 1.0.0"
 ```
 
 #### Step 3: Create and Push Tag
 
 ```bash
 # Create annotated tag
-git tag -a v1.1.0 -m "Release v1.1.0"
+git tag -a v1.0.0 -m "Release v1.0.0"
 
 # Push tag to trigger workflow
-git push origin v1.1.0
+git push origin v1.0.0
 ```
 
 **That's it!** The workflow will automatically start.
@@ -111,40 +108,20 @@ git push origin v1.1.0
 #### Step 1: Update and Commit Version
 
 1. Go to your repository on GitHub
-2. Edit `package.json` to update version
+2. Edit `cmd/root.go` to update version
 3. Commit the changes
 
 #### Step 2: Create Release on GitHub
 
 1. Go to **Releases** page
 2. Click **Create a new release**
-3. Click **Choose a tag** → enter `v1.1.0`
-4. Click **Create new tag**: `v1.1.0`
+3. Click **Choose a tag** → enter `v1.0.0`
+4. Click **Create new tag**: `v1.0.0`
 5. Set **Target**: `master` (or your main branch)
 6. Add release notes (optional - will be auto-generated if empty)
 7. Click **Publish release**
 
 **The workflow will automatically trigger when you publish the release!**
-
----
-
-### Method 3: Using npm version (Easiest)
-
-```bash
-# Automatically update version and create tag
-npm version patch  # 1.0.0 → 1.0.1
-npm version minor  # 1.0.0 → 1.1.0
-npm version major  # 1.0.0 → 2.0.0
-
-# Push the tag
-git push origin master --tags
-```
-
-**This is the recommended method!** It automatically:
-- Updates `package.json`
-- Creates a git commit
-- Creates an annotated tag
-- Follows semantic versioning
 
 ---
 
@@ -156,85 +133,70 @@ git push origin master --tags
 
 ```yaml
 - Checkout code
-- Setup Node.js 18.x
+- Setup Go 1.23
 - Install dependencies
 ```
 
 #### Phase 2: Quality Checks (2-3 minutes)
 
 ```yaml
-- Run tests (npm test)
-- Run linter (npm run lint)
+- Run tests (go test)
+- Run linter (go vet, golint)
 ```
 
 **If tests fail**: The workflow stops, no release is created
 
-#### Phase 3: Package Creation (1 minute)
+#### Phase 3: Build Binaries (3-5 minutes)
 
 ```yaml
-- Create package using scripts/package.sh
-- Generates: gh-repo-cli-v1.1.0.zip
+- Build for Linux (amd64, arm64)
+- Build for macOS (amd64, arm64)
+- Build for Windows (amd64)
 ```
 
-#### Phase 4: Checksum Generation (< 1 minute)
+#### Phase 4: Package Creation (1 minute)
 
 ```yaml
-- Generate SHA256 checksum
-- Creates: gh-repo-cli-v1.1.0.zip.sha256
+- Create .tar.gz archives for Unix systems
+- Create .zip archives for Windows
+- Generates: ghr-v1.0.0-linux-amd64.tar.gz, etc.
 ```
 
-#### Phase 5: Release Creation (1 minute)
+#### Phase 5: Checksum Generation (< 1 minute)
+
+```yaml
+- Generate SHA256 checksums for all archives
+- Creates: checksums.txt
+```
+
+#### Phase 6: Release Creation (1 minute)
 
 ```yaml
 - Create GitHub Release
-- Upload: gh-repo-cli-v1.1.0.zip
-- Upload: gh-repo-cli-v1.1.0.zip.sha256
+- Upload all archives
+- Upload checksums.txt
 - Auto-generate release notes
 ```
 
-**Total Time**: ~5-8 minutes
+**Total Time**: ~8-12 minutes
 
 ---
 
 ### Artifacts Created
 
-Each release creates two files:
+Each release creates the following files:
 
-#### 1. Package Zip: `gh-repo-cli-v1.1.0.zip`
+#### Binaries
 
-Contains:
-```
-gh-repo-cli-v1.1.0/
-├── commands/
-│   ├── analyze.js
-│   ├── clean.js
-│   ├── ls.js
-│   ├── read.js
-│   ├── search.js
-│   └── structure.js
-├── lib/
-│   ├── cache.js
-│   ├── github.js
-│   └── utils.js
-├── index.js
-├── package.json
-└── README.md
-```
+- `ghr-v1.0.0-linux-amd64.tar.gz`
+- `ghr-v1.0.0-linux-arm64.tar.gz`
+- `ghr-v1.0.0-darwin-amd64.tar.gz`
+- `ghr-v1.0.0-darwin-arm64.tar.gz`
+- `ghr-v1.0.0-windows-amd64.zip`
 
-**Excludes**:
-- `node_modules/`
-- `.git/`
-- Test files
-- Development scripts
+#### Checksums
 
-#### 2. Checksum: `gh-repo-cli-v1.1.0.zip.sha256`
-
-Contains:
-```
-a1b2c3d4e5f6...  gh-repo-cli-v1.1.0.zip
-```
-
-**Purpose**: Verify file integrity after download
+- `checksums.txt` - SHA256 checksums for all archives
 
 ---
 
@@ -249,16 +211,16 @@ a1b2c3d4e5f6...  gh-repo-cli-v1.1.0.zip
 1. **Tag format is wrong**
    ```bash
    # ❌ Wrong (missing 'v' prefix)
-   git tag 1.1.0
+   git tag 1.0.0
 
    # ✅ Correct
-   git tag v1.1.0
+   git tag v1.0.0
    ```
 
 2. **Tag not pushed**
    ```bash
    # Make sure to push the tag!
-   git push origin v1.1.0
+   git push origin v1.0.0
    ```
 
 3. **Workflow file has syntax error**
@@ -275,7 +237,7 @@ git tag
 git ls-remote --tags origin
 
 # Re-push tag if needed
-git push origin v1.1.0 --force
+git push origin v1.0.0 --force
 ```
 
 ---
@@ -312,30 +274,30 @@ Error: Resource not accessible by integration
 
 **Possible Causes**:
 
-1. **Node version mismatch**
+1. **Go version mismatch**
    ```bash
    # Check CI version (from .github/workflows/release.yml)
-   node-version: '18.x'
+   go-version: '1.23'
 
    # Check your local version
-   node --version
+   go version
 
    # If different, install correct version
-   nvm install 18
-   nvm use 18
+   # (Use go's built-in version management)
    ```
 
 2. **Environment differences**
    ```bash
-   # Run tests in clean environment
-   npm ci
-   npm test
+   # Clean build
+   go clean -cache
+   go mod tidy
+   go test -v ./...
    ```
 
 3. **Missing dependencies**
    ```bash
    # Ensure all dependencies are committed
-   git add package.json package-lock.json
+   git add go.mod go.sum
    git commit -m "chore: update dependencies"
    ```
 
@@ -343,41 +305,36 @@ Error: Resource not accessible by integration
 
 ```bash
 # Mimic CI environment locally
-docker run --rm -v "$PWD":/app -w /app node:18 npm test
+docker run --rm -v "$PWD":/app -w /app golang:1.23 go test -v ./...
 ```
 
 ---
 
-### Issue 4: Package creation fails
+### Issue 4: Build fails
 
-**Symptoms**: Workflow fails at "Create package" step
+**Symptoms**: Workflow fails at "Build binaries" step
 
 **Error Message**:
 ```
-bash: scripts/package.sh: No such file or directory
+go build: cannot find main module
 ```
 
 **Solution**:
 
-1. Check if `scripts/package.sh` exists:
+1. Check if `go.mod` exists:
    ```bash
-   ls -la scripts/package.sh
+   ls -la go.mod
    ```
 
-2. Ensure it's executable:
+2. Ensure it's valid:
    ```bash
-   chmod +x scripts/package.sh
+   go mod verify
    ```
 
-3. Verify script syntax:
+3. Commit the fix:
    ```bash
-   bash -n scripts/package.sh
-   ```
-
-4. Commit the fix:
-   ```bash
-   git add scripts/package.sh
-   git commit -m "fix: add executable permission to package.sh"
+   git add go.mod go.sum
+   git commit -m "fix: update go.mod"
    git push
    ```
 
@@ -389,7 +346,7 @@ bash: scripts/package.sh: No such file or directory
 
 **Possible Causes**:
 
-1. **Package script failed silently**
+1. **Build step failed silently**
 2. **File glob pattern incorrect**
 3. **Upload step failed**
 
@@ -400,18 +357,19 @@ Check workflow logs:
 1. Go to **Actions** tab
 2. Click on the failed workflow run
 3. Expand each step to find errors
-4. Look for "Create package" and "Create Release" steps
+4. Look for "Build binaries" and "Create Release" steps
 
 **Common Fixes**:
 
 ```yaml
-# Ensure file paths are correct (not using wildcards in paths)
+# Ensure file paths are correct
 - name: Create Release
   uses: softprops/action-gh-release@v1
   with:
     files: |
-      gh-repo-cli-${{ env.VERSION }}.zip
-      gh-repo-cli-${{ env.VERSION }}.zip.sha256
+      dist/*.tar.gz
+      dist/*.zip
+      dist/checksums.txt
 ```
 
 ---
@@ -424,13 +382,13 @@ Follow semver for version numbers:
 
 ```bash
 # MAJOR: Breaking changes
-npm version major  # 1.0.0 → 2.0.0
+git tag v2.0.0
 
 # MINOR: New features (backward compatible)
-npm version minor  # 1.0.0 → 1.1.0
+git tag v1.1.0
 
 # PATCH: Bug fixes (backward compatible)
-npm version patch  # 1.0.0 → 1.0.1
+git tag v1.0.1
 ```
 
 ### 2. Create Changelog
@@ -438,19 +396,18 @@ npm version patch  # 1.0.0 → 1.0.1
 Keep `CHANGELOG.md` updated with each release:
 
 ```markdown
-## [1.1.0] - 2024-02-02
+## [1.0.0] - 2026-04-09
 
 ### Added
-- New command: `ghr search --ignore-case`
-- Support for SOCKS5 proxies
-
-### Fixed
-- Cache directory creation on Windows
-- File encoding issues in search results
+- Complete Go rewrite for better performance
+- Cross-platform binary releases
+- Improved error handling
 
 ### Changed
-- Improved error messages
-- Updated dependencies
+- Installation: npm → go install / binary download
+
+### Removed
+- Node.js dependencies
 ```
 
 ### 3. Test Before Tagging
@@ -459,12 +416,15 @@ Always run full test suite before creating release tag:
 
 ```bash
 # Run all checks
-npm run lint
-npm test
+go vet ./...
+go test -v ./...
+
+# Check formatting
+gofmt -s -w .
 
 # If everything passes, then create release
-npm version patch
-git push origin master --tags
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
 ```
 
 ### 4. Use Release Branches (Optional)
@@ -492,21 +452,18 @@ git push origin master --tags
 After each release:
 
 ```bash
-# 1. Download the release package
-wget https://github.com/yourname/gh-repo-cli/releases/download/v1.1.0/gh-repo-cli-v1.1.0.zip
+# 1. Download the release binary
+wget https://github.com/syxc/gh-repo-cli/releases/download/v1.0.0/ghr-v1.0.0-$(uname -s)-$(uname -m).tar.gz
 
 # 2. Verify checksum
-sha256sum -c gh-repo-cli-v1.1.0.zip.sha256
+sha256sum -c checksums.txt
 
 # 3. Extract and test
-unzip gh-repo-cli-v1.1.0.zip
-cd gh-repo-cli-v1.1.0
-npm install
-npm link
-ghr --version
+tar -xzf ghr-v1.0.0-*.tar.gz
+./ghr --version
 
 # 4. Try basic commands
-ghr analyze facebook/react
+./ghr analyze facebook/react
 ```
 
 ---
@@ -516,18 +473,17 @@ ghr analyze facebook/react
 ### Release Commands
 
 ```bash
-# Quick release (patch)
-npm version patch && git push origin master --tags
+# Manual tag (patch)
+git tag -a v1.0.1 -m "Release v1.0.1"
+git push origin v1.0.1
 
 # Minor release
-npm version minor && git push origin master --tags
-
-# Major release
-npm version major && git push origin master --tags
-
-# Manual tag
 git tag -a v1.1.0 -m "Release v1.1.0"
 git push origin v1.1.0
+
+# Major release
+git tag -a v2.0.0 -m "Release v2.0.0"
+git push origin v2.0.0
 ```
 
 ### Monitoring Release
@@ -537,7 +493,7 @@ git push origin v1.1.0
 git tag -l "v*" --sort=-version:refname | head -5
 
 # Check tag details
-git show v1.1.0
+git show v1.0.0
 
 # Compare releases
 git diff v1.0.0 v1.1.0 --stat
@@ -547,8 +503,8 @@ git diff v1.0.0 v1.1.0 --stat
 
 ```bash
 # If something goes wrong, delete the tag
-git tag -d v1.1.0
-git push origin :refs/tags/v1.1.0
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
 
 # Also delete the release on GitHub web UI
 ```
@@ -573,53 +529,78 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-
     steps:
-    # 1. Checkout code
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    # 2. Setup Node.js
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
       with:
-        node-version: '18.x'
-        cache: 'npm'
+        go-version: '1.23'
+        cache: true
 
-    # 3. Install dependencies
     - name: Install dependencies
-      run: npm ci
+      run: go mod download
 
-    # 4. Run tests
     - name: Run tests
-      run: npm test
+      run: go test -v ./...
 
-    # 5. Run linter
     - name: Run linter
-      run: npm run lint
+      run: |
+        go vet ./...
+        go install golang.org/x/lint/golint@latest
+        golint ./...
 
-    # 6. Create package
-    - name: Create package
+    - name: Build binaries
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
-        bash scripts/package.sh ${VERSION}
+        mkdir -p dist
+        
+        # Build for multiple platforms
+        platforms=(
+          "linux/amd64"
+          "linux/arm64"
+          "darwin/amd64"
+          "darwin/arm64"
+          "windows/amd64"
+        )
+        
+        for platform in "${platforms[@]}"; do
+          IFS='/' read -r GOOS GOARCH <<< "$platform"
+          output="ghr-${VERSION}-${GOOS}-${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            output="${output}.exe"
+          fi
+          
+          GOOS=$GOOS GOARCH=$GOARCH go build \
+            -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd.Version=${VERSION}" \
+            -o "dist/${output}" .
+        done
 
-    # 7. Generate checksum
-    - name: Generate checksum
+    - name: Create archives
       run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        sha256sum "gh-repo-cli-${VERSION}.zip" > "gh-repo-cli-${VERSION}.zip.sha256"
+        cd dist
+        for file in ghr-*; do
+          if [[ "$file" == *.exe ]]; then
+            zip "${file%.exe}.zip" "$file"
+          else
+            tar -czf "${file}.tar.gz" "$file"
+          fi
+        done
 
-    # 8. Create Release
+    - name: Generate checksums
+      run: |
+        cd dist
+        sha256sum *.tar.gz *.zip > checksums.txt
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          gh-repo-cli-*.zip
-          gh-repo-cli-*.zip.sha256
+          dist/*.tar.gz
+          dist/*.zip
+          dist/checksums.txt
         generate_release_notes: true
-        draft: false
-        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -627,8 +608,9 @@ jobs:
 **Key Points**:
 - ✅ Triggers only on version tags (v*)
 - ✅ Requires `contents: write` permission
-- ✅ Uses `npm ci` for clean installs
-- ✅ Runs tests before packaging
+- ✅ Cross-compilation for multiple platforms
+- ✅ Uses `go mod download` for dependencies
+- ✅ Runs tests before building
 - ✅ Auto-generates release notes
 - ✅ Uses built-in `GITHUB_TOKEN` (no secrets needed)
 
@@ -639,6 +621,7 @@ jobs:
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Creating Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
 - [Semantic Versioning](https://semver.org/)
+- [Go Cross Compilation](https://go.dev/doc/install/source#environment)
 - [softprops/action-gh-release](https://github.com/softprops/action-gh-release)
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with gh-repo-cli
+about: Report a problem with ghr
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -20,8 +20,9 @@ What you expected to happen.
 
 ## Environment
 - OS: [e.g. macOS, Linux, Windows]
-- Node.js version: [run `node --version`]
-- gh-repo-cli version: [run `gh --version`]
+- Go version: [run `go version`]
+- ghr version: [run `ghr --version`]
+- Installation method: [e.g. go install, binary download, build from source]
 
 ## Additional context
 Add any other context about the problem here.

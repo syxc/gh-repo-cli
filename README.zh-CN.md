@@ -1,9 +1,9 @@
-# gh-repo-cli
+# ghr (gh-repo-cli)
 
 > 轻量级 GitHub 仓库分析工具，无需 API Token
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/@oknian1/gh-repo-cli)](https://github.com/syxc/gh-repo-cli)
+[![Go Version](https://img.shields.io/badge/go-%3E%3D1.23-blue)](https://github.com/syxc/gh-repo-cli)
 [![CI](https://github.com/syxc/gh-repo-cli/workflows/CI/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 [![Code Quality](https://github.com/syxc/gh-repo-cli/workflows/Code%20Quality/badge.svg)](https://github.com/syxc/gh-repo-cli/actions)
 
@@ -13,16 +13,15 @@
 
 ### 问题现状
 
-许多 AI 编码助手（如 GLM Coding Plan、Claude Code、Cursor 等）通过 **MCP（模型上下文协议）** 服务器或内置工具提供 GitHub 仓库分析功能。然而，这些服务通常存在**使用配额限制**，影响你的工作效率：
+许多 AI 编码助手（如 Claude Code、Cursor、Copilot 等）通过 **MCP（模型上下文协议）** 服务器或内置工具提供 GitHub 仓库分析功能。然而，这些服务通常存在**使用配额限制**，影响你的工作效率：
 
-- **GLM Coding Lite**: 每月有限的 API 调用次数
 - **GitHub API**: 速率限制（未认证用户 60 次/小时）
 - **MCP 服务器**: 通常有每日/每月配额
 - **付费工具**: 重度使用时订阅费用昂贵
 
 ### 解决方案
 
-**gh-repo-cli** 是一个**免费、无限制的替代方案**：
+**ghr** 是一个**免费、无限制的替代方案**：
 
 - ✅ 使用 `git clone` 而非 GitHub API - **无速率限制**
 - ✅ **独立使用**或**与任何 AI 助手配合使用**
@@ -44,17 +43,17 @@ ghr read facebook/react README.md
 
 #### 2. 与 AI 编码助手配合（推荐！）
 
-**最佳实践**：将 gh-repo-cli 的使用规则添加到 `~/.claude/CLAUDE.md` 全局配置，让 AI 自动检测何时需要分析仓库。
+**最佳实践**：将 ghr 的使用规则添加到 AI 助手的配置中，让 AI 自动检测何时需要分析仓库。
 
 **一键配置** - 在 `~/.claude/CLAUDE.md` 中添加：
 
 ```
 # GitHub 仓库分析优先级
 
-GLM MCP (zread): 有限配额 ❌
-gh-repo-cli: 完全免费 ✅
+MCP (zread): 有限配额 ❌
+ghr: 完全免费 ✅
 
-触发规则（用户输入匹配 → 使用 gh-repo-cli）:
+触发规则（用户输入匹配 → 使用 ghr）:
 - github.com/ 链接
 - "github 仓库" | "分析.*仓库" | "仓库.*分析"
 - "查看.*代码" | "阅读.*源码" | "clone.*github"
@@ -67,8 +66,8 @@ ghr structure <owner/repo>         # 获取结构
 ghr read <owner/repo> <file>       # 读取文件
 ghr readme <owner/repo>            # 读取 README
 
-MCP 备用条件（仅在以下情况使用 zread MCP）:
-1. 私有仓库（gh-repo-cli 仅支持公开仓库）
+MCP 备用条件（仅在以下情况使用 MCP）:
+1. 私有仓库（ghr 仅支持公开仓库）
 2. 需要 git 历史
 3. 用户明确要求使用 MCP
 ```
@@ -78,7 +77,7 @@ MCP 备用条件（仅在以下情况使用 zread MCP）:
 ```
 你: "React 是如何实现 hooks 的？"
 
-Claude Code:
+AI 助手:
   $ ghr analyze facebook/react
   $ ghr search facebook/react "useState" -e .js
   $ ghr read facebook/react packages/react/src/ReactHooks.js
@@ -88,7 +87,7 @@ Claude Code:
 
 **优势**：
 - ✅ **零配置** - 无需创建 skill 文件
-- ✅ **自动检测** - AI 决定何时使用 gh-repo-cli
+- ✅ **自动检测** - AI 决定何时使用 ghr
 - ✅ **自然交互** - 用自然语言提问，无需手动调用命令
 - ✅ **智能降级** - 私有仓库时自动使用 MCP
 - ✅ **始终生效** - 所有对话都可用
@@ -116,10 +115,10 @@ ghr analyze tensorflow/tensorflow -o tf.json
 
 #### 4. MCP 与 CLI 对比
 
-| 特性 | MCP 服务器 | gh-repo-cli |
-|------|-----------|-------------|
+| 特性 | MCP 服务器 | ghr |
+|------|-----------|-----|
 | **使用限制** | ❌ 通常有限制 | ✅ 无限制 |
-| **配置** | ⚠️ 配置 Token/服务器 | ✅ 一段 CLAUDE.md 配置 |
+| **配置** | ⚠️ 配置 Token/服务器 | ✅ 安装即用 |
 | **隐私** | ⚠️ 代码通过第三方服务器 | ✅ 本地分析 |
 | **费用** | 💰 付费/配额限制 | ✅ 免费 |
 | **速度** | ⚠️ 依赖网络 | ⚡ 本地缓存 |
@@ -131,15 +130,76 @@ ghr analyze tensorflow/tensorflow -o tf.json
 - 📊 **全面分析** - 语言检测、文件统计、目录结构
 - 🔎 **代码搜索** - 在整个代码库中搜索模式
 - 📁 **文件操作** - 读取文件、列出目录
-- 🌐 **代理支持** - 支持 HTTP/HTTPS/SOCKS5 代理
+- 🌐 **代理支持** - 支持 HTTP/HTTPS 代理
 - ⚡ **本地缓存** - 仓库本地缓存，快速后续访问
 - 🔒 **安全** - 除了 git clone 操作外，数据不离开你的机器
 - 🤖 **AI 友好** - JSON 输出格式，易于与 AI 助手集成
+- 🚀 **快速** - 使用 Go 编写，性能优异
 
 ## 📦 安装
 
+### 方式 1：使用 go install（推荐）
+
+**安装：**
 ```bash
-npm install -g @oknian1/gh-repo-cli
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+```
+
+**添加到 PATH（首次安装）：**
+
+macOS (zsh)：
+```bash
+# 添加到 ~/.zshenv（如文件不存在则创建）
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv
+source ~/.zshenv
+```
+
+Linux (bash)：
+```bash
+# 添加到 ~/.bashrc
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Fish：
+```bash
+set -Ux PATH $PATH (go env GOPATH)/bin
+```
+
+### 方式 2：下载预编译二进制文件
+
+从 [Releases](https://github.com/syxc/gh-repo-cli/releases) 页面下载适合你平台的最新版本。
+
+```bash
+# 示例：macOS ARM64
+curl -L -o ghr "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
+chmod +x ghr
+sudo mv ghr /usr/local/bin/
+```
+
+### 方式 3：从源码构建
+
+```bash
+git clone https://github.com/syxc/gh-repo-cli.git
+cd ghr
+go build -o ghr .
+sudo mv ghr /usr/local/bin/
+```
+
+### 方式 4：下载预编译二进制
+
+下载适合你平台的最新版本：
+
+```bash
+# macOS ARM64 (Apple Silicon)
+curl -L -o ghr.tar.gz "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/gh-repo-cli/releases/latest | grep tag_name | cut -d'"' -f4)_darwin_arm64.tar.gz"
+tar -xzf ghr.tar.gz
+sudo mv ghr /usr/local/bin/
+
+# Linux AMD64
+curl -L -o ghr.tar.gz "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr_$(curl -s https://api.github.com/repos/syxc/gh-repo-cli/releases/latest | grep tag_name | cut -d'"' -f4)_linux_amd64.tar.gz"
+tar -xzf ghr.tar.gz
+sudo mv ghr /usr/local/bin/
 ```
 
 ## 🚀 使用方法
@@ -160,7 +220,10 @@ ghr search facebook/react useState
 ghr read facebook/react README.md
 
 # 列出目录中的文件
-ghr ls facebook/react/src
+ghr ls facebook/react src
+
+# 读取仓库 README
+ghr readme facebook/react
 
 # 清理缓存仓库
 ghr clean --all              # 清理所有缓存
@@ -195,10 +258,10 @@ export GH_PROXY="http://127.0.0.1:7890"
 GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react
 ```
 
-支持的代理类型：
-- HTTP/HTTPS 代理: `http://127.0.0.1:7890`
-- SOCKS5 代理: `socks5://127.0.0.1:1080`
-- 带认证: `http://username:password@proxy.example.com:8080`
+支持的环境变量（按优先级检查）：
+- `GH_PROXY` - 工具专用代理
+- `HTTPS_PROXY` / `https_proxy` - 标准 HTTPS 代理
+- `HTTP_PROXY` / `http_proxy` - 标准 HTTP 代理
 
 ## 📚 高级用法
 
@@ -217,6 +280,9 @@ ghr analyze facebook/react --no-cache
 
 # 获取更深的目录结构
 ghr structure facebook/react --depth 4
+
+# 自定义深度列出文件
+ghr ls facebook/react src --depth 2
 ```
 
 ## 🔧 配置
@@ -243,13 +309,13 @@ rm -rf ~/.ghr-cache/
 
 ## 📖 更多文档
 
-- 🤖 **[AI 集成指南](docs/AI_INTEGRATION.zh-CN.md)** - Claude Code 集成最佳实践
+- 🤖 **[AI 集成指南](docs/AI_INTEGRATION.zh-CN.md)** - AI 助手集成最佳实践
 - 🚀 **[发布工作流指南](docs/RELEASE_WORKFLOW.md)** - 自动发布配置指南
-- 🧪 **[测试指南](docs/TESTING.md)** - 测试指南
+- 🧪 **[测试指南](docs/TESTING.md)** - 测试和开发指南
 
 ## 🤝 贡献
 
-欢迎贡献！请随时提交 Pull Request。
+欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
 ## 📝 许可证
 
@@ -257,7 +323,8 @@ rm -rf ~/.ghr-cache/
 
 ## 🙏 致谢
 
-- 使用 [commander](https://github.com/tj/commander.js) 构建
+- 使用 [Cobra](https://github.com/spf13/cobra) 构建 - 强大的 Go CLI 框架
+- 使用 [Go](https://go.dev/) 编写，追求性能和可靠性
 - 旨在节省 API 配额使用，提供无限制仓库分析
 - 灵感来源于对免费、私密、无限制 GitHub 仓库探索的需求
 
@@ -267,6 +334,6 @@ rm -rf ~/.ghr-cache/
 
 **由开源社区用 ❤️ 制作**
 
-**厌倦了 API 配额？** ⚡ 使用 gh-repo-cli + 你喜欢的 AI 助手！
+**厌倦了 API 配额？** ⚡ 使用 ghr + 你喜欢的 AI 助手！
 
 </div>
