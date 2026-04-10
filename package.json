@@ -1,0 +1,53 @@
+{
+  "name": "@oknian1/gh-repo-cli",
+  "version": "0.2.0",
+  "description": "A lightweight CLI tool for analyzing GitHub repositories without API tokens",
+  "main": "index.js",
+  "bin": {
+    "ghr": "./bin/ghr"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "docs/",
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "postinstall": "go-npm install",
+    "preuninstall": "go-npm uninstall",
+    "test": "go test ./...",
+    "build": "go build -o ghr ."
+  },
+  "goBinary": {
+    "name": "ghr",
+    "path": "./bin",
+    "url": "https://github.com/syxc/gh-repo-cli/releases/download/v{{version}}/ghr_{{version}}_{{platform}}_{{arch}}.tar.gz"
+  },
+  "keywords": [
+    "github",
+    "cli",
+    "repository",
+    "analyzer",
+    "git",
+    "code-analysis"
+  ],
+  "author": "syxc",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "go-npm": "^0.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/syxc/gh-repo-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/syxc/gh-repo-cli/issues"
+  },
+  "homepage": "https://github.com/syxc/gh-repo-cli#readme"
+}
