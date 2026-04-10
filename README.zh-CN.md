@@ -164,15 +164,15 @@ go build -o ghr .
 sudo mv ghr /usr/local/bin/
 ```
 
-### 方式 4：使用 npm（遗留）
+### 方式 4：使用 npm
 
-为向后兼容，npm 分发仍然可用：
+对于 npm 用户，包已在 npm 仓库中可用：
 
 ```bash
 npm install -g @oknian1/gh-repo-cli
 ```
 
-注意：npm 包封装了 Go 二进制文件，可能不如直接安装更新。
+这将自动下载适合你平台的预编译二进制文件。
 
 ## 🚀 使用方法
 

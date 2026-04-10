@@ -164,15 +164,15 @@ go build -o ghr .
 sudo mv ghr /usr/local/bin/
 ```
 
-### Option 4: Using npm (Legacy)
+### Option 4: Using npm
 
-For backward compatibility, npm distribution is still available:
+For npm users, the package is available on the npm registry:
 
 ```bash
 npm install -g @oknian1/gh-repo-cli
 ```
 
-Note: The npm package wraps the Go binary and may not be as up-to-date as direct installation.
+This will automatically download the correct pre-built binary for your platform.
 
 ## 🚀 Usage
 
