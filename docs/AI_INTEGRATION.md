@@ -16,7 +16,7 @@ By adding ghr usage rules to your `~/.claude/CLAUDE.md` global configuration fil
 
 **Option A: Using go install (Recommended)**
 ```bash
-go install github.com/syxc/gh-repo-cli@latest
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
 **Option B: Download Binary**
@@ -206,7 +206,7 @@ ghr --version
 
 **Reinstall if needed**:
 ```bash
-go install github.com/syxc/gh-repo-cli@latest
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
 ### Claude Uses MCP Instead of ghr

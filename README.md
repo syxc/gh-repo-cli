@@ -140,8 +140,20 @@ ghr analyze tensorflow/tensorflow -o tf.json
 
 ### Option 1: Using go install (Recommended)
 
+**Install:**
 ```bash
-go install github.com/syxc/gh-repo-cli@latest
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+```
+
+**Add to PATH (first time only):**
+```bash
+# For bash/zsh
+export PATH=$PATH:$(go env GOPATH)/bin
+
+# For fish
+set -x PATH $PATH (go env GOPATH)/bin
+
+# To make it permanent, add to ~/.bashrc, ~/.zshrc, or ~/.config/fish/config.fish
 ```
 
 ### Option 2: Download Pre-built Binary

@@ -16,7 +16,7 @@
 
 **方式 A: 使用 go install（推荐）**
 ```bash
-go install github.com/syxc/gh-repo-cli@latest
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
 **方式 B: 下载二进制文件**
@@ -206,7 +206,7 @@ ghr --version
 
 **如需重新安装**:
 ```bash
-go install github.com/syxc/gh-repo-cli@latest
+go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 ```
 
 ### Claude 使用 MCP 而不是 ghr
