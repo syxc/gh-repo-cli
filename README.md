@@ -149,7 +149,7 @@ go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
 
 macOS (zsh):
 ```bash
-# Add to ~/.zshenv (创建文件如果不存在)
+# Add to ~/.zshenv (create if not exists)
 echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv
 source ~/.zshenv
 ```
