@@ -7,7 +7,8 @@
   },
   "files": [
     "bin/",
-    "src/",
+    "install.js",
+    "uninstall.js",
     "docs/",
     "LICENSE",
     "README.md",
@@ -15,8 +16,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "postinstall": "node scripts/install-binary.js",
-    "preuninstall": "rm -f bin/ghr bin/ghr.exe",
+    "postinstall": "node install.js",
+    "preuninstall": "node uninstall.js",
     "test": "go test ./...",
     "build": "go build -o ghr ."
   },

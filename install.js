@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
  * Postinstall script to download ghr binary for the current platform
- * Replaces go-npm with better cross-platform support
  */
 
 const https = require('https');
@@ -9,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const packageJson = require('../package.json');
+const packageJson = require('./package.json');
 const version = packageJson.version;
 
 // Map Node.js arch to Go arch
@@ -49,7 +48,6 @@ function downloadFile(url, dest) {
     const file = fs.createWriteStream(dest);
     https.get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
-        // Follow redirect
         downloadFile(response.headers.location, dest).then(resolve).catch(reject);
         return;
       }
@@ -67,29 +65,25 @@ function downloadFile(url, dest) {
 }
 
 function extractArchive(archivePath, destDir) {
-  const ext = path.extname(archivePath);
-
   if (archivePath.endsWith('.tar.gz')) {
     execSync(`tar -xzf "${archivePath}" -C "${destDir}"`, { stdio: 'inherit' });
-  } else if (ext === '.zip') {
+  } else if (archivePath.endsWith('.zip')) {
     execSync(`unzip -o "${archivePath}" -d "${destDir}"`, { stdio: 'inherit' });
   } else {
-    throw new Error(`Unknown archive format: ${ext}`);
+    throw new Error(`Unknown archive format: ${archivePath}`);
   }
 }
 
 async function main() {
-  const binDir = path.join(__dirname, '..', 'bin');
+  const binDir = path.join(__dirname, 'bin');
   const binaryName = process.platform === 'win32' ? 'ghr.exe' : 'ghr';
   const binaryPath = path.join(binDir, binaryName);
 
-  // Check if binary already exists
   if (fs.existsSync(binaryPath)) {
-    console.log('Binary already exists, skipping download');
+    console.log('ghr binary already exists, skipping download');
     return;
   }
 
-  // Create bin directory
   if (!fs.existsSync(binDir)) {
     fs.mkdirSync(binDir, { recursive: true });
   }
@@ -106,14 +100,11 @@ async function main() {
 
     extractArchive(archivePath, binDir);
 
-    // Make binary executable (Unix only)
     if (process.platform !== 'win32') {
       fs.chmodSync(binaryPath, 0o755);
     }
 
-    // Clean up archive
     fs.unlinkSync(archivePath);
-
     console.log(`Successfully installed ghr to ${binaryPath}`);
   } catch (error) {
     console.error('Installation failed:', error.message);
