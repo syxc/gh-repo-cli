@@ -2,7 +2,7 @@
 
 > 让助手自己决定何时使用 ghr，而不是手动调用。
 
-AI 编码助手通常通过 MCP 服务器或内置 API 工具分析 GitHub 仓库，这类服务一般有配额限制。ghr 对公开仓库免费且无限制，适合作为默认的仓库分析工具。同样的配置思路适用于 Claude Code、Cursor、GitHub Copilot 等主流助手，下文以 Claude Code 为例。
+AI 编码助手通常通过 MCP 服务器或内置 API 工具分析 GitHub 仓库，这类服务一般有配额限制。ghr 对公开仓库免费且无限制，适合作为默认的仓库分析工具。同样的配置思路适用于 Claude Code、Codex、Pi 等主流编码 Agent，下文以 Claude Code 为例。
 
 ## 配置
 
@@ -14,7 +14,9 @@ AI 编码助手通常通过 MCP 服务器或内置 API 工具分析 GitHub 仓�
 which ghr && ghr --version
 ```
 
-### 2. 在 `~/.claude/CLAUDE.md` 中添加规则
+### 2. 在 Agent 的指令文件中添加规则
+
+Claude Code 编辑 `~/.claude/CLAUDE.md`；Codex 等其他 Agent 读取各自的指令文件（如 `AGENTS.md`）。需要添加的规则：
 
 ```
 # GitHub 仓库分析优先级

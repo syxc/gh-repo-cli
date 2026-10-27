@@ -2,7 +2,7 @@
 
 > Let the assistant decide when to use ghr, instead of invoking it by hand.
 
-AI coding assistants analyze GitHub repositories through MCP servers or built-in API tools, which usually come with quotas. ghr is free and unlimited for public repositories, so it works well as the default repository-analysis tool. The same configuration pattern applies to Claude Code, Cursor, GitHub Copilot and similar assistants; the example below uses Claude Code.
+AI coding assistants analyze GitHub repositories through MCP servers or built-in API tools, which usually come with quotas. ghr is free and unlimited for public repositories, so it works well as the default repository-analysis tool. The same pattern applies to mainstream coding agents such as Claude Code, Codex and Pi; the example below uses Claude Code.
 
 ## Setup
 
@@ -14,7 +14,9 @@ See the [README installation section](../README.md#installation), then verify:
 which ghr && ghr --version
 ```
 
-### 2. Add rules to `~/.claude/CLAUDE.md`
+### 2. Add the rules to the agent's instruction file
+
+For Claude Code, edit `~/.claude/CLAUDE.md`; other agents such as Codex read their own instruction file (`AGENTS.md`). The rules to add:
 
 ```
 # GitHub Repository Analysis Priority
