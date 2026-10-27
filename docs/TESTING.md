@@ -2,239 +2,73 @@
 
 ## Overview
 
-This document describes the testing setup for ghr (Go rewrite).
-
-## Test Structure
-
-```
-internal/
-├── git/
-│   └── git_test.go       # Tests for git module
-└── utils/
-    └── utils_test.go     # Tests for utility functions
-```
+This document describes the testing setup for ghr (Rust).
 
 ## Running Tests
 
-### Run all tests
 ```bash
-go test -v ./...
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run one module's tests
+cargo test cli
+
+# Run a single test
+cargo test parse_repo_accepts_owner_and_name
 ```
 
-### Run tests with coverage
-```bash
-go test -v -race -coverprofile=coverage.out ./...
+Tests are `#[cfg(test)]` modules next to the code they cover (`src/*.rs`).
 
-# View coverage report
-go tool cover -func=coverage.out
-
-# Generate HTML coverage report
-go tool cover -html=coverage.out -o coverage.html
-```
-
-### Run specific package tests
-```bash
-go test -v ./internal/git
-go test -v ./internal/utils
-```
-
-### Run specific test function
-```bash
-go test -v -run TestParseRepo ./internal/git
-```
-
-## Test Coverage
-
-Current coverage targets:
-
-| Metric    | Target |
-|-----------|--------|
-| Packages  | 100%   |
-| Functions | 70%    |
-| Lines     | 70%    |
-
-## Writing Tests
-
-### Unit Tests
-
-Unit tests should:
-- Test individual functions in isolation
-- Use table-driven tests for multiple test cases
-- Be fast and deterministic
-- Not depend on external services
-
-Example:
-```go
-func TestParseRepo(t *testing.T) {
-    tests := []struct {
-        input    string
-        wantOwn  string
-        wantName string
-        wantErr  bool
-    }{
-        {"facebook/react", "facebook", "react", false},
-        {"invalid", "", "", true},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.input, func(t *testing.T) {
-            owner, name, err := ParseRepo(tt.input)
-            if tt.wantErr {
-                if err == nil {
-                    t.Errorf("ParseRepo(%q) expected error", tt.input)
-                }
-                return
-            }
-            if owner != tt.wantOwn || name != tt.wantName {
-                t.Errorf("ParseRepo(%q) = (%q, %q), want (%q, %q)",
-                    tt.input, owner, name, tt.wantOwn, tt.wantName)
-            }
-        })
-    }
-}
-```
-
-### Integration Tests
-
-Integration tests should:
-- Test multiple components working together
-- May use real Git operations (clone, fetch, etc.)
-- Be marked with longer timeouts if needed
-- Be in separate `_test.go` files or use build tags
-
-Example:
-```go
-func TestCloneRepo_Integration(t *testing.T) {
-    if testing.Short() {
-        t.Skip("Skipping integration test in short mode")
-    }
-
-    cacheDir := t.TempDir()
-    repoPath, err := CloneRepo("octocat/Hello-World", cacheDir, "")
-    if err != nil {
-        t.Fatalf("CloneRepo failed: %v", err)
-    }
-
-    if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-        t.Errorf("Repository not cloned to %s", repoPath)
-    }
-}
-```
-
-## Linting
-
-### Run go vet
-```bash
-go vet ./...
-```
-
-### Install and run golint
-```bash
-go install golang.org/x/lint/golint@latest
-golint ./...
-```
-
-### Format code
-```bash
-gofmt -s -w .
-```
-
-### Check formatting
-```bash
-if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-  echo "Please run 'gofmt -s -w .' to format your code"
-  gofmt -s -l .
-fi
-```
-
-## Pre-commit Checks
-
-Before committing, run the validation:
+## Lint and Format
 
 ```bash
-# Format code
-gofmt -s -w .
+# Format (authoritative)
+cargo fmt --all
 
-# Run linter
-go vet ./...
-
-# Run tests
-go test -v ./...
-
-# Check go.mod is tidy
-go mod tidy
-git diff --exit-code go.mod go.sum
+# Lint with warnings as errors (same as CI)
+cargo clippy --all-targets --all-features --locked -- -D warnings
 ```
 
-## CI/CD
+Lint configuration lives in `Cargo.toml` under `[lints]`. Silence a lint only
+with `#[expect(...)]` plus a comment explaining why.
 
-### GitHub Actions
+## Test Layout
 
-The project uses GitHub Actions for continuous integration:
+| Module | Covers |
+|--------|--------|
+| `src/cli.rs` | Argument parsing, help text, error strings, exit codes |
+| `src/config.rs` | Proxy resolution order, system-proxy parsing |
+| `src/git.rs` | Repo format parsing, clone URLs, proxy git args |
+| `src/fsutil.rs` | Directory traversal, file IO, output saving, size formatting |
+| `src/search.rs` | Regex search, extension filter, language detection |
+| `src/output.rs` | Table and tree rendering |
+| `src/json.rs` | Go-compatible JSON escaping and shapes |
+| `src/commands.rs` | Counting, sorting, truncation helpers |
 
-- **CI**: Runs on every push and pull request
-  - Lint checks (go vet, formatting)
-  - Unit tests
-  - Cross-platform builds
-- **Release**: Runs on version tags
-- **Code Quality**: Runs weekly and on every push
+## Guidelines
 
-### Local CI Testing
+- Name tests as sentences: `search_files_skips_git_and_node_modules_directories`
+- One behavior per test; share setup helpers, not assertions
+- Tests use temp directories under `std::env::temp_dir()` and clean up after themselves
+- Deterministic behavior matters: outputs (JSON key order, tie-breaking) are
+  asserted byte-for-byte so the output files stay stable across versions
 
-To test CI locally:
+## CI
 
-```bash
-# Install act (https://github.com/nektos/act)
-brew install act  # macOS
-# or
-choco install act-cli  # Windows
+GitHub Actions runs on every push and pull request:
 
-# Run CI workflow
-act push
-
-# Run specific job
-act -j test
-```
+- **CI**: formatting, clippy (`-D warnings`), tests, cross-platform builds
+- **Code Quality**: weekly and on push; also checks for TODO comments and oversized files
+- **Release**: on version tags, runs tests and clippy before building archives
 
 ## Troubleshooting
 
-### Tests timeout
-
-If tests timeout, increase the timeout:
-
-```bash
-go test -v -timeout 5m ./...
-```
-
-### Integration tests fail
-
-Integration tests require network access to clone repositories. If they fail:
-
-1. Check your internet connection
-2. Check if GitHub is accessible
-3. Try a different test repository
-4. Run with `-short` flag to skip integration tests
-
-### Coverage not generating
-
-Ensure tests are running correctly:
-
-```bash
-go test -v -coverprofile=coverage.out ./...
-go tool cover -func=coverage.out
-```
-
-### Module issues
-
-If you encounter module-related errors:
-
-```bash
-# Clean module cache
-go clean -modcache
-
-# Re-download dependencies
-go mod download
-
-# Verify modules
-go mod verify
-```
+- **Tests fail on a slow machine**: traversal tests use their own temp dirs; if a
+  previous run left stale state, delete `ghr-*` directories in your temp folder.
+- **Clippy failures**: run `cargo clippy --all-targets --all-features` locally and
+  fix, or justify an `#[expect(...)]` with a comment.
+- **Lockfile issues**: run `cargo update --locked` errors mean `Cargo.lock` is out
+  of date; commit the refreshed `Cargo.lock`.

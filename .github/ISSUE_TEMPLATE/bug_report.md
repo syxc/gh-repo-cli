@@ -20,9 +20,8 @@ What you expected to happen.
 
 ## Environment
 - OS: [e.g. macOS, Linux, Windows]
-- Go version: [run `go version`]
 - ghr version: [run `ghr --version`]
-- Installation method: [e.g. go install, binary download, build from source]
+- Installation method: [e.g. binary download, cargo install]
 
 ## Additional context
 Add any other context about the problem here.
