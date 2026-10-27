@@ -6,22 +6,14 @@ labels: enhancement
 assignees: ''
 ---
 
-## 🚀 Feature Description
+## Problem
 
-<!-- Please describe the feature you would like to see added -->
+What are you trying to do, and what gets in the way?
 
-## 📋 Use Case
+## Proposed solution
 
-<!-- What problem would this feature solve? What value would it add? -->
+What should ghr do instead?
 
-## 💡 Proposed Solution
+## Alternatives considered
 
-<!-- How do you think this feature should be implemented? -->
-
-## 🔄 Alternatives
-
-<!-- Are there any alternative solutions or features you considered? -->
-
-## 📊 Additional Context
-
-<!-- Any other context, screenshots, or examples about the feature request -->
+Other approaches you looked at, if any.

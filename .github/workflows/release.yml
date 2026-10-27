@@ -9,80 +9,89 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        go-version: '1.23'
-        cache: true
+        components: clippy
 
-    - name: Install dependencies
-      run: go mod download
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
 
     - name: Run tests
-      run: go test -v ./...
+      run: cargo test --locked
 
-    - name: Run linter
-      run: |
-        go vet ./...
-        go install golang.org/x/lint/golint@latest
-        golint ./...
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
-    - name: Build binaries
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, platform: linux_amd64 }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl, platform: linux_arm64 }
+          - { os: macos-latest, target: x86_64-apple-darwin, platform: darwin_amd64 }
+          - { os: macos-latest, target: aarch64-apple-darwin, platform: darwin_arm64 }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, platform: windows_amd64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}
+
+    - name: Build binary
+      run: cargo build --release --locked --target ${{ matrix.target }}
+
+    - name: Package (unix)
+      if: runner.os != 'Windows'
       run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
+        VERSION="${GITHUB_REF_NAME#v}"
         mkdir -p dist
+        cp "target/${{ matrix.target }}/release/ghr" dist/ghr
+        tar -czf "dist/ghr_${VERSION}_${{ matrix.platform }}.tar.gz" -C dist ghr
+        rm dist/ghr
 
-        # Build for multiple platforms
-        platforms=(
-          "linux/amd64"
-          "linux/arm64"
-          "darwin/amd64"
-          "darwin/arm64"
-          "windows/amd64"
-        )
-
-        for platform in "${platforms[@]}"; do
-          IFS='/' read -r GOOS GOARCH <<< "$platform"
-          # Output format for go-npm compatibility: ghr_{{version}}_{{platform}}_{{arch}}
-          output="ghr_${VERSION}_${GOOS}_${GOARCH}"
-          if [ "$GOOS" = "windows" ]; then
-            output="${output}.exe"
-          fi
-
-          echo "Building for $GOOS/$GOARCH..."
-          GOOS=$GOOS GOARCH=$GOARCH go build \
-            -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd/root.Version=${VERSION}" \
-            -o "dist/${output}" ./cmd/ghr
-        done
-
-        ls -la dist/
-
-    - name: Create archives
+    - name: Package (windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
       run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        cd dist
+        $version = $env:GITHUB_REF_NAME -replace '^v', ''
+        New-Item -ItemType Directory -Force dist | Out-Null
+        Copy-Item "target/${{ matrix.target }}/release/ghr.exe" dist/ghr.exe
+        Compress-Archive -Path dist/ghr.exe -DestinationPath "dist/ghr_${version}_${{ matrix.platform }}.zip"
+        Remove-Item dist/ghr.exe
 
-        for file in ghr_*; do
-          if [[ "$file" == *.exe ]]; then
-            # Windows: rename to ghr.exe then zip
-            mv "$file" ghr.exe
-            zip "${file%.exe}.zip" ghr.exe
-            mv ghr.exe "$file"
-          else
-            # Unix: rename to ghr then tar
-            mv "$file" ghr
-            tar -czf "${file}.tar.gz" ghr
-            mv ghr "$file"
-          fi
-        done
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ghr-${{ matrix.platform }}
+        path: dist/*
+        if-no-files-found: error
 
-        ls -la
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
 
     - name: Generate checksums
       run: |
@@ -91,7 +100,7 @@ jobs:
         cat checksums.txt
 
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           dist/*.tar.gz

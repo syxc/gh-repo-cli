@@ -1,12 +1,9 @@
-# Go
+# Rust build artifacts
+/target
 *.exe
-*.exe~
 *.dll
 *.so
 *.dylib
-*.test
-*.out
-vendor/
 
 # IDE
 .idea/
@@ -19,24 +16,16 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# Build artifacts
+# Release artifacts
 dist/
 *.zip
 *.tar.gz
 /ghr
 /ghr-*
 
-# Go workspace file
-go.work
-
-# Test coverage
-coverage.out
-coverage.html
-*.cov
-
 # CLI cache and output (user-specific)
-~/.ghr-cache/
-~/.ghr-output/
+.ghr-cache/
+.ghr-output/
 
 # Analysis and test reports
 *REPORT*.md

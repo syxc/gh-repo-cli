@@ -13,22 +13,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        go-version: '1.23'
-        cache: false
+        components: rustfmt, clippy
 
-    - name: Install dependencies
-      run: go mod download
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
 
-    - name: Run go vet
-      run: go vet ./...
+    - name: Check formatting
+      run: cargo fmt --all --check
 
-    - name: Run golint
-      run: |
-        go install golang.org/x/lint/golint@latest
-        golint ./...
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
   test:
     runs-on: ubuntu-latest
@@ -36,45 +33,38 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-        cache: false
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Install dependencies
-      run: go mod download
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
 
     - name: Run tests
-      run: go test -v -race ./...
+      run: cargo test --locked
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        goos: [linux, darwin, windows]
-        goarch: [amd64, arm64]
-        exclude:
-          - goos: windows
-            goarch: arm64
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        go-version: '1.23'
-        cache: false
+        targets: ${{ matrix.target }}
+
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}
 
     - name: Build
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-      run: |
-        output="ghr-${{ matrix.goos }}-${{ matrix.goarch }}"
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          output="${output}.exe"
-        fi
-        go build -ldflags="-s -w -X github.com/syxc/gh-repo-cli/cmd/root.Version=$(git describe --tags --always)" -o "${output}" ./cmd/ghr
-        ls -la "${output}"
+      run: cargo build --release --locked --target ${{ matrix.target }}

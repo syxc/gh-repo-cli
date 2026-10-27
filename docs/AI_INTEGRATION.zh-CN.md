@@ -1,55 +1,27 @@
-# Claude Code 集成指南
+# AI 助手集成指南
 
-> ghr 与 Claude Code 结合使用的最佳实践
+> 让助手自己决定何时使用 ghr，而不是手动调用。
 
-## 核心理念
+AI 编码助手通常通过 MCP 服务器或内置 API 工具分析 GitHub 仓库，这类服务一般有配额限制。ghr 对公开仓库免费且无限制，适合作为默认的仓库分析工具。同样的配置思路适用于 Claude Code、Codex、Pi 等主流编码 Agent，下文以 Claude Code 为例。
 
-**让 AI 主动判断何时使用工具，而不是手动调用。**
-
-将 ghr 的使用规则添加到你的 `~/.claude/CLAUDE.md` 全局配置文件中，Claude Code 会自动检测何时需要分析 GitHub 仓库。
-
----
-
-## 快速配置
+## 配置
 
 ### 1. 安装 ghr
 
-**方式 A: 使用 go install（推荐）**
+见 [README 安装一节](../README.zh-CN.md#安装)，然后确认：
+
 ```bash
-go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
+which ghr && ghr --version
 ```
 
-**添加到 PATH（首次安装）：**
-```bash
-# macOS (zsh): 添加到 ~/.zshenv
-echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.zshenv && source ~/.zshenv
+### 2. 在 Agent 的指令文件中添加规则
 
-# Linux (bash): 添加到 ~/.bashrc
-echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc && source ~/.bashrc
-```
-
-**方式 B: 下载二进制文件**
-```bash
-# macOS/Linux
-curl -L -o ghr "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr-$(uname -s)-$(uname -m)"
-chmod +x ghr
-sudo mv ghr /usr/local/bin/
-```
-
-**方式 C: 使用 npm（遗留）**
-```bash
-npm install -g @oknian1/gh-repo-cli
-```
-
-### 2. 添加配置到 CLAUDE.md
-
-编辑 `~/.claude/CLAUDE.md` 文件，添加以下内容：
+Claude Code 编辑 `~/.claude/CLAUDE.md`；Codex 等其他 Agent 读取各自的指令文件（如 `AGENTS.md`）。需要添加的规则：
 
 ```
 # GitHub 仓库分析优先级
 
-MCP (zread): 有限配额 ❌
-ghr: 完全免费 ✅
+ghr 免费无限制；公开仓库优先使用 ghr 而非 MCP 工具。
 
 触发规则（用户输入匹配 → 使用 ghr）:
 - github.com/ 链接
@@ -73,178 +45,29 @@ MCP 备用条件（仅在以下情况使用 MCP）:
 ### 3. 开始使用
 
 ```
-你: "我想了解 Next.js 的项目架构"
-Claude Code: [自动运行 ghr analyze vercel/next.js 并分析]
+你: "我想理解 Next.js 的架构"
+Claude Code: [自动执行 ghr analyze vercel/next.js，然后回答]
 ```
 
----
+## 使用模式
 
-## 对比优势
-
-| 方面 | MCP 服务器 | ghr |
-|------|-----------|-----|
-| **使用配额** | 100-500 次/月 ❌ | 无限 ✅ |
-| **速率限制** | 60 请求/小时 ❌ | 无限制 ✅ |
-| **费用** | $10-50/月 ❌ | 完全免费 ✅ |
-| **隐私** | 代码发送到第三方 ❌ | 本地分析 ✅ |
-| **可靠性** | 依赖服务器 ❌ | 离线工作 ✅ |
-| **速度** | 依赖网络 ⚠️ | 本地缓存 ⚡ |
-
----
-
-## 使用示例
-
-### 场景 1: 探索新项目架构
+由面到点：先用 `ghr structure` 看结构，再用 `ghr search` 定位，最后用 `ghr read` 精读。例如：
 
 ```
-你: "我想看看 TypeScript 是如何组织的"
+你: "TypeScript 项目是怎么组织的？"
+→ ghr structure microsoft/TypeScript --depth 2
 
-Claude Code:
-  $ ghr structure microsoft/TypeScript --depth 2
+你: "编译器入口在哪？"
+→ ghr search microsoft/TypeScript "createCompiler" -e .ts
 
-  TypeScript 项目的目录结构如下：
-  ├── src/          # 编译器核心代码
-  ├── scripts/      # 构建脚本
-  └── tests/        # 测试文件
+你: "给我看核心循环的代码"
+→ ghr read microsoft/TypeScript src/compiler/tsc.ts
 ```
 
-### 场景 2: 查找功能实现
-
-```
-你: "Vite 是如何实现 HMR 的？"
-
-Claude Code:
-  $ ghr search vitejs/vite "HMR|hot.*module"
-  $ ghr read vitejs/vite packages/vite/src/server/moduleGraph.ts
-
-  Vite 的 HMR 实现在 moduleGraph.ts 中，通过 WebSocket 连接...
-```
-
-### 场景 3: 学习配置规范
-
-```
-你: "ESLint 的配置文件有哪些格式？"
-
-Claude Code:
-  $ ghr search eslint/eslint "config.*file" -e .md
-  $ ghr read eslint/eslint docs/use/configuration/README.md
-
-  ESLint 支持 .eslintrc.js、.eslintrc.json、.eslintrc.yml 等格式...
-```
-
-### 场景 4: 对比项目差异
-
-```
-你: "Webpack 和 Vite 的构建方式有什么不同？"
-
-Claude Code:
-  $ ghr analyze webpack/webpack
-  $ ghr analyze vitejs/vite
-
-  两者核心区别：
-  - Webpack 使用打包模式，Vite 使用 ESM + 原生浏览器
-  - Vite 启动速度更快，开发体验更好...
-```
-
----
-
-## 最佳实践
-
-### 自然提问，让 AI 主导
-
-✅ **正确**: "Tailwind CSS 的架构是怎样的？" → Claude 自动调用 ghr  
-❌ **错误**: "运行 ghr analyze tailwindlabs/tailwindcss"
-
-### 由宽到深，逐步深入
-
-```
-推荐流程:
-  1. "这个项目的整体结构是什么？" → ghr structure
-  2. "路由功能在哪里实现？" → ghr search
-  3. "给我看看路由器的核心代码" → ghr read
-```
-
-### 充分利用缓存
-
-```bash
-# 首次分析：克隆仓库（10-30 秒）
-ghr analyze vercel/next.js
-
-# 后续查询：直接使用缓存（<1 秒）
-ghr search vercel/next.js "router"
-ghr read vercel/next.js packages/next/server/router.ts
-
-# 如需更新：强制刷新
-ghr analyze vercel/next.js --no-cache
-```
-
-### 保存分析结果
-
-```bash
-# 保存为 JSON 供 AI 处理
-ghr analyze facebook/react -o react-analysis.json
-
-# 然后在对话中引用：
-# "@react-analysis.json 解释代码库架构"
-```
-
----
+利用缓存：同一仓库的第一条命令触发克隆，之后都读 `~/.ghr-cache`；需要最新提交时加 `--no-cache`。需要助手引用结构化结果时用 `-o file.json`，例如 `@react-analysis.json 解释这个代码库的架构`。
 
 ## 故障排查
 
-### Claude 没有使用 ghr
-
-**检查配置**:
-```bash
-cat ~/.claude/CLAUDE.md
-```
-
-应包含 "GitHub 仓库分析优先级" 部分
-
-### ghr 命令未找到
-
-**检查安装**:
-```bash
-# 如果使用 go install
-export PATH=$PATH:$(go env GOPATH)/bin
-
-# 验证安装
-which ghr
-ghr --version
-```
-
-**如需重新安装**:
-```bash
-go install github.com/syxc/gh-repo-cli/cmd/ghr@latest
-```
-
-### Claude 使用 MCP 而不是 ghr
-
-这是**预期行为**！以下情况会自动降级到 MCP：
-1. 私有仓库（ghr 仅支持公开仓库）
-2. 需要 git 历史记录
-3. 用户明确要求使用 MCP
-
----
-
-## 总结
-
-**配置一次，永久生效**：
-1. 安装 ghr（1 分钟）
-2. 添加配置到 CLAUDE.md（10 秒）
-3. 自然对话即可使用（零学习）
-
-**核心优势**：
-- ✅ AI 自动检测，无需手动调用
-- ✅ 无限使用，完全免费
-- ✅ 本地分析，隐私安全
-- ✅ 智能降级，兼容私有仓库
-- ✅ Go 编写，快速可靠
-
----
-
-<div align="center">
-
-**CLAUDE.md 指令 + ghr = 自动仓库分析** 🚀
-
-</div>
+- **助手没有使用 ghr**：确认 `~/.claude/CLAUDE.md` 中存在优先级段落，并新开会话让其加载。
+- **找不到 `ghr` 命令**：把 `~/.cargo/bin` 加入 `PATH`，或按 README 重新安装。
+- **助手使用了 MCP 而不是 ghr**：私有仓库、需要 git 历史、或你明确要求 MCP 时属预期行为——ghr 仅支持公开仓库。

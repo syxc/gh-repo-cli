@@ -16,36 +16,30 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        go-version: '1.23'
-        cache: true
+        components: rustfmt, clippy
 
-    - name: Install dependencies
-      run: go mod download
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
 
     - name: Check code formatting
-      run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-          echo "::error::Please run 'gofmt -s -w .' to format your code"
-          gofmt -s -l .
-          exit 1
-        fi
+      run: cargo fmt --all --check
 
-    - name: Run go vet
-      run: go vet ./...
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
     - name: Check for TODO comments
       run: |
-        if grep -r "TODO" --include="*.go" cmd/ internal/; then
+        if grep -rn "TODO" --include="*.rs" src/; then
           echo "::warning::TODO comments found in code"
         fi
 
     - name: Check file sizes
       run: |
         echo "Checking file sizes..."
-        for file in cmd/*.go internal/*/*.go; do
+        for file in src/*.rs; do
           if [ -f "$file" ]; then
             size=$(wc -l < "$file")
             if [ $size -gt 300 ]; then
@@ -53,31 +47,3 @@ jobs:
             fi
           fi
         done
-
-    - name: Validate go.mod
-      run: |
-        echo "Validating go.mod..."
-        go mod verify
-        go mod tidy
-        git diff --exit-code go.mod go.sum || (echo "::error::go.mod or go.sum is not tidy" && exit 1)
-
-    - name: Check documentation
-      run: |
-        if [ ! -f README.md ]; then
-          echo "::error::README.md not found"
-          exit 1
-        fi
-
-        # Check if README has required sections
-        if ! grep -q "## Installation" README.md; then
-          echo "::warning::README.md missing Installation section"
-        fi
-
-        if ! grep -q "## Usage" README.md; then
-          echo "::warning::README.md missing Usage section"
-        fi
-
-    - name: Run tests
-      run: |
-        go test -v ./...
-        echo "Tests completed"

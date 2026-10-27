@@ -5,13 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-04-09
+## [0.3.0] - 2026-10-28
 
 ### Changed
-- **Complete rewrite in Go** - Migrated from Node.js to Go for better performance and distribution
-- New installation methods: `go install`, pre-built binaries, or build from source
-- Updated all GitHub Actions workflows for Go build process
-- Updated documentation to reflect Go-based installation and development
+- **Complete rewrite in Rust** - same CLI surface, commands, flags, output formats and exit codes as the Go implementation
+- Single dependency set (`regex`, `thiserror`); output files stay byte-compatible with the Go build (HTML-escaped JSON, `null` vs `[]` semantics)
+- Count tables (`analyze`) break ties deterministically by key; the Go build's tie order was random
+
+### Added
+- Automatic system proxy detection (macOS `scutil --proxy`, Linux GNOME `gsettings`, Windows registry), refreshed on every invocation; environment variables still take priority (`GH_PROXY`, `HTTPS_PROXY`/`https_proxy`, `HTTP_PROXY`/`http_proxy`, `ALL_PROXY`/`all_proxy`)
+- `--no-cache` now actually re-clones as documented (it was accepted but ignored in the Go build)
+
+### Removed
+- Cobra's auto-generated `completion` command (CLI framework boilerplate; shell completion was never part of ghr's documented feature set)
+
+## [0.2.3] - 2026-04-09
+
+### Fixed
+- Version string and packaging metadata
+
+## [0.2.0] - 2026-04-09
+
+### Changed
+- **Complete rewrite in Go** - migrated from Node.js to Go for better performance and distribution
+- New installation methods: pre-built binaries or build from source
+- Updated GitHub Actions workflows for the Go build process
 
 ### Added
 - Cross-platform binary releases for Linux, macOS, and Windows (amd64/arm64)
@@ -19,9 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Better CJK (Chinese, Japanese, Korean) character support in search and display
 
 ### Removed
-- Node.js dependencies and npm-based installation (replaced by Go binaries)
-- Jest testing framework (replaced by Go's built-in testing)
-- ESLint configuration (replaced by go vet and golint)
+- Node.js dependencies and npm-based installation
+- Jest testing framework and ESLint configuration
 
 ## [0.1.2] - 2026-04-09
 
@@ -46,13 +63,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON output support
 - Comprehensive documentation with Chinese translations
 - AI integration guides for Claude Code
-- Testing framework (Jest)
-- ESLint code quality checks
-
-## [Unreleased]
-
-### Planned
-- Enhanced error handling
-- More configuration options
-- Performance optimizations
-- Additional output formats

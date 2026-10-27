@@ -1,0 +1,4 @@
+# The aarch64 musl target must link with rust-lld: the host's GNU ld rejects
+# the aarch64-specific --fix-cortex-a53-843419 flag that rustc passes.
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"

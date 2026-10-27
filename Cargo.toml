@@ -1,0 +1,22 @@
+[package]
+name = "ghr"
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A lightweight CLI tool for analyzing GitHub repositories without API tokens"
+license = "MIT"
+
+[dependencies]
+regex = "1"
+thiserror = "2"
+
+[profile.release]
+strip = true
+lto = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = 1 }
