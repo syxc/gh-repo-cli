@@ -15,7 +15,13 @@ cargo clippy --all-targets --all-features --locked -- -D warnings  # lint, same 
 cargo run -q -- analyze octocat/Hello-World                       # run locally
 ```
 
-CI runs these plus a 5-target build matrix. On machines with a compile-cache wrapper (`rustc-wrapper` in `~/.cargo/config.toml`), clippy diagnostics can be replayed stale - rerun with `CARGO_RUSTC_WRAPPER= cargo clippy ...` when results look suspicious.
+CI runs these plus a 5-target build matrix.
+
+Local gotcha: when `~/.cargo/config.toml` sets a `rustc-wrapper` (e.g. kache), clippy can replay stale diagnostics and hide real lint errors. If local clippy is green but CI is red - or any clippy result looks stale - recheck without the wrapper before trusting either side:
+
+```bash
+CARGO_RUSTC_WRAPPER= cargo clippy --all-targets --all-features --locked -- -D warnings
+```
 
 ## Layout
 
