@@ -1,10 +1,12 @@
-//! The seven subcommand implementations. Each mirrors the Go build's control
-//! flow and output byte-for-byte, including the "❌ Error:" line printed to
-//! stdout before an error propagates to the CLI layer.
+//! The subcommand implementations. Output mirrors the original Go build
+//! (including the "❌ Error:" line printed to stdout before an error
+//! propagates to the CLI layer), plus the cache-retention features added
+//! after the Rust rewrite.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::cache;
 use crate::cli::Command;
 use crate::color;
 use crate::config::Config;
@@ -40,7 +42,12 @@ pub fn run(command: Command, config: &Config, no_cache: bool) -> Result<(), Stri
         Command::Read { repo, file } => read(&repo, &file, config, no_cache),
         Command::Ls { repo, path, depth } => ls(&repo, &path, depth, config, no_cache),
         Command::Readme { repo } => readme(&repo, config, no_cache),
-        Command::Clean { repo, all, output } => clean(repo.as_deref(), all, output, config),
+        Command::Clean {
+            repo,
+            all,
+            output,
+            old,
+        } => clean(repo.as_deref(), all, output, old.as_deref(), config),
     }
 }
 
@@ -309,7 +316,29 @@ fn find_readme(repo_path: &Path, sub_dir: &str) -> Option<(String, String)> {
     None
 }
 
-fn clean(repo: Option<&str>, all: bool, output_dir: bool, config: &Config) -> Result<(), String> {
+fn clean(
+    repo: Option<&str>,
+    all: bool,
+    output_dir: bool,
+    old: Option<&str>,
+    config: &Config,
+) -> Result<(), String> {
+    let max_age = match old {
+        Some(raw) => {
+            if all || repo.is_some() {
+                return Err(
+                    "the --old flag cannot be combined with --all or a repository argument"
+                        .to_owned(),
+                );
+            }
+            Some(cache::parse_duration(raw)?)
+        }
+        None => None,
+    };
+    if let Some(max_age) = max_age {
+        return clean_stale(config, max_age);
+    }
+
     if let Some(repo) = repo {
         let (owner, name) = git::parse_repo(repo).map_err(|err| report(&err))?;
         let repo_path = config.cache_dir.join(owner).join(name);
@@ -341,6 +370,11 @@ fn clean(repo: Option<&str>, all: bool, output_dir: bool, config: &Config) -> Re
             "{}",
             color::gray("   Or specify a repository: ghr clean owner/repo")
         );
+        println!(
+            "{}",
+            color::gray("   Or clean stale entries:   ghr clean --old 30d")
+        );
+        print_cache_stats(config);
     }
 
     if output_dir && config.output_dir.exists() {
@@ -348,6 +382,68 @@ fn clean(repo: Option<&str>, all: bool, output_dir: bool, config: &Config) -> Re
     }
 
     Ok(())
+}
+
+/// Removes cached repositories whose last use is older than `max_age`.
+fn clean_stale(config: &Config, max_age: std::time::Duration) -> Result<(), String> {
+    let stale = cache::stale_entries(&config.cache_dir, max_age, None);
+    if stale.is_empty() {
+        println!(
+            "{}",
+            color::yellow(&format!(
+                "⚠️  No cached repos unused for {} or more",
+                cache::format_age(max_age)
+            ))
+        );
+        return Ok(());
+    }
+
+    let mut total = 0;
+    for entry in &stale {
+        let size = fsutil::directory_size(&entry.path);
+        total += size;
+        remove_and_report(
+            &entry.path,
+            &format!(
+                "✅ Cleaned cache for {} (unused {}, {})",
+                entry.name,
+                cache::format_age(entry.age()),
+                fsutil::format_bytes(size)
+            ),
+        )?;
+    }
+    println!(
+        "{}",
+        color::green(&format!(
+            "✅ Cleaned {} repos ({})",
+            stale.len(),
+            fsutil::format_bytes(total)
+        ))
+    );
+
+    Ok(())
+}
+
+/// Reminder shown by bare `ghr clean`: what the cache holds right now.
+fn print_cache_stats(config: &Config) {
+    let entries = cache::scan(&config.cache_dir);
+    if entries.is_empty() {
+        return;
+    }
+    let size: u64 = entries
+        .iter()
+        .map(|entry| fsutil::directory_size(&entry.path))
+        .sum();
+    let oldest = cache::format_age(entries[0].age());
+    println!(
+        "{}",
+        color::gray(&format!(
+            "   Cache: {} repos, {} (oldest last used {} ago)",
+            entries.len(),
+            fsutil::format_bytes(size),
+            oldest
+        ))
+    );
 }
 
 fn remove_and_report(path: &Path, success_message: &str) -> Result<(), String> {
@@ -361,7 +457,41 @@ fn remove_and_report(path: &Path, success_message: &str) -> Result<(), String> {
 }
 
 fn clone_or_report(repo: &str, config: &Config, no_cache: bool) -> Result<PathBuf, String> {
+    auto_clean_cache(config, repo);
     git::clone_repo(repo, &config.cache_dir, &config.proxy, no_cache).map_err(|err| report(&err))
+}
+
+/// Opt-in LRU-style retention: when `GH_CACHE_MAX_AGE` is set (e.g. `30d`),
+/// cached repositories unused for that long are evicted before every
+/// clone/fetch, keeping the cache bounded without a separate command.
+fn auto_clean_cache(config: &Config, current: &str) {
+    let Some(raw) = std::env::var_os("GH_CACHE_MAX_AGE") else {
+        return;
+    };
+    let raw = raw.to_string_lossy();
+    if raw.is_empty() {
+        return;
+    }
+
+    match cache::parse_duration(&raw) {
+        Ok(max_age) => {
+            for entry in cache::stale_entries(&config.cache_dir, max_age, Some(current)) {
+                let _ = std::fs::remove_dir_all(&entry.path);
+                println!(
+                    "{}",
+                    color::green(&format!(
+                        "✅ Auto-cleaned cache for {} (unused {})",
+                        entry.name,
+                        cache::format_age(entry.age())
+                    ))
+                );
+            }
+        }
+        Err(message) => println!(
+            "{}",
+            color::yellow(&format!("⚠️  Ignoring invalid GH_CACHE_MAX_AGE: {message}"))
+        ),
+    }
 }
 
 /// Prints the "❌ Error:" line for `err` and returns its message so the CLI

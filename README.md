@@ -43,6 +43,8 @@ ghr readme facebook/react
 
 ghr clean facebook/react                # drop one cached repo
 ghr clean --all                         # drop the whole cache
+ghr clean --old 30d                     # drop repos unused for 30 days or more
+ghr clean                               # show usage plus cache statistics
 ```
 
 Details worth knowing:
@@ -69,6 +71,16 @@ GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # temporary overri
 ## Cache and output
 
 Repositories are cached in `~/.ghr-cache/<owner>/<repo>`; `ghr clean` removes entries from it. `~/.ghr-output/` exists only for `ghr clean -o`, which deletes it entirely; `-o` itself always writes to the path you give.
+
+Long-lived caches stay small by design:
+
+- Clones are shallow and limited to the default branch tip (`--depth 1 --single-branch`); each refresh expires reflogs and prunes superseded objects, so a cached repo does not grow over time.
+- LRU-style retention: every use of a repo refreshes its last-used marker. `ghr clean --old 30d` evicts repos unused for 30 days or more; bare `ghr clean` shows the cache size and the oldest entry as a reminder.
+- Automatic eviction: set `GH_CACHE_MAX_AGE` (same format, e.g. `30d`) and ghr evicts stale repos on every invocation before touching the cache:
+
+  ```bash
+  export GH_CACHE_MAX_AGE=30d
+  ```
 
 ## Documentation
 
