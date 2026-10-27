@@ -1,21 +1,14 @@
-## Description
-Please include a summary of the changes and the related issue.
+## What does this PR do?
+
+A short summary of the change and why.
 
 ## Type of change
-Please delete options that are not relevant.
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation
 
-## How has this been tested?
-Please describe the tests that you ran to verify your changes.
+## How was it tested?
 
-## Checklist:
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have tested my changes locally
+The checks you ran: `cargo test`, `cargo clippy --all-targets --all-features --locked -- -D warnings`, plus anything beyond them.
