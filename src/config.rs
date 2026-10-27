@@ -29,10 +29,10 @@ impl Config {
 /// Cache location: a non-empty `GH_CACHE_DIR` overrides the default under
 /// the home directory.
 fn resolve_cache_dir(home: &Path, override_dir: Option<&std::ffi::OsStr>) -> PathBuf {
-    override_dir
-        .filter(|dir| !dir.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home.join(".ghr-cache"))
+    match override_dir.filter(|dir| !dir.is_empty()) {
+        Some(dir) => PathBuf::from(dir),
+        None => home.join(".ghr-cache"),
+    }
 }
 
 #[cfg(windows)]
