@@ -99,14 +99,32 @@ jobs:
         sha256sum *.tar.gz *.zip > checksums.txt
         cat checksums.txt
 
+    - name: Extract release notes from CHANGELOG
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        # index() keeps this literal: no regex escaping involved.
+        awk -v ver="$VERSION" '
+          index($0, "## [" ver "]") == 1 { found=1; next }
+          found && index($0, "## [") == 1 { exit }
+          found { print }
+        ' CHANGELOG.md > release-notes.md
+        if [ ! -s release-notes.md ]; then
+          echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/master/CHANGELOG.md) for details." > release-notes.md
+        fi
+        {
+          echo ""
+          echo "**Full changelog**: [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/master/CHANGELOG.md)"
+        } >> release-notes.md
+        cat release-notes.md
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
+        body_path: release-notes.md
         files: |
           dist/*.tar.gz
           dist/*.zip
           dist/checksums.txt
-        generate_release_notes: true
         draft: false
         prerelease: false
       env:

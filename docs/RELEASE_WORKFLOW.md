@@ -19,7 +19,7 @@ Pushing a version tag (`v*`) triggers `.github/workflows/release.yml`, which:
 
 3. Packages archives named `ghr_<version>_<os>_<arch>` (`.tar.gz` for Unix, `.zip` for Windows, binary inside renamed to `ghr` / `ghr.exe`)
 4. Generates `checksums.txt` (SHA256)
-5. Creates a GitHub Release with auto-generated notes
+5. Creates a GitHub Release whose notes are extracted from the matching `CHANGELOG.md` section (falls back to a changelog link if the section is missing)
 
 ## Triggering a Release
 
