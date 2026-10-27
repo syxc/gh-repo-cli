@@ -23,6 +23,8 @@ Local gotcha: when `~/.cargo/config.toml` sets a `rustc-wrapper` (e.g. kache), c
 CARGO_RUSTC_WRAPPER= cargo clippy --all-targets --all-features --locked -- -D warnings
 ```
 
+Judge clippy by its EXIT CODE, never by grepping the output: shell wrappers on this machine (rtk shim, kache) reformat and summarize clippy results, so text-based checks undercount. Both misses in October 2026 (unreadable_literal, map_unwrap_or) were visible locally but read as clean through output parsing.
+
 ## Layout
 
 | File | Responsibility |
