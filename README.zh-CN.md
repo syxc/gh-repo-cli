@@ -34,6 +34,7 @@ cargo install --path .
 
 ```bash
 ghr analyze facebook/react              # 语言、文件类型、结构
+ghr analyze facebook/react --depth 3    # 更深的结构树（默认 2）
 ghr structure vuejs/core --depth 2      # 目录树（深度默认 3）
 ghr search facebook/react useState -e .js
 ghr search facebook/react types --ignore-case
@@ -49,7 +50,7 @@ ghr clean                               # 显示用法与缓存统计
 
 需要注意的行为：
 
-- `search` 接受正则表达式。表格最多显示 50 条；`-o` 始终保存完整结果。
+- `search` 接受正则表达式。表格最多显示 50 条；`-o` 始终保存完整结果。二进制文件（前 8 KiB 含 NUL 字节）会被跳过。
 - `analyze`、`structure`、`search` 支持 `-o <file>` 输出 JSON（自动创建目录）。
 - `--no-cache` 重新克隆，而不是更新缓存副本。
 - `read` 输出文件内容；文件不存在时会列出其父目录内容，便于找到正确路径。
@@ -72,7 +73,7 @@ GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # 临时覆盖
 
 仓库缓存在 `~/.ghr-cache/<owner>/<repo>`，`ghr clean` 用于删除其中的条目。`~/.ghr-output/` 仅被 `ghr clean -o` 使用（整体删除）；`-o` 本身始终写入你指定的路径。
 
-长期使用的缓存不会失控膨胀：
+长期使用的缓存不会失控膨胀。缓存位置可用 `GH_CACHE_DIR` 重定向（默认 `~/.ghr-cache`）：
 
 - 克隆是浅克隆且只取默认分支的最新提交（`--depth 1 --single-branch`）；每次刷新会过期 reflog 并修剪被替换的对象，缓存仓库不会随时间增大。
 - LRU 式保留策略：每次使用仓库都会刷新其"最近使用"标记。`ghr clean --old 30d` 逐出超过 30 天未使用的仓库；裸 `ghr clean` 会显示缓存大小与最旧条目作为提醒。

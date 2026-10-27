@@ -40,9 +40,16 @@ impl RepoInfo {
 
 pub fn parse_repo(repo: &str) -> Result<(&str, &str), GitError> {
     match repo.split('/').collect::<Vec<_>>().as_slice() {
-        [owner, name] if !owner.is_empty() && !name.is_empty() => Ok((owner, name)),
+        [owner, name] if is_segment(owner) && is_segment(name) => Ok((owner, name)),
         _ => Err(GitError::InvalidRepoFormat(repo.to_owned())),
     }
+}
+
+/// A path segment that cannot escape the cache directory: dot segments like
+/// `..` would otherwise resolve `clean`/`clone` targets outside (or onto the
+/// root of) the cache tree.
+fn is_segment(segment: &str) -> bool {
+    !segment.is_empty() && segment != "." && segment != ".."
 }
 
 pub fn build_clone_url(owner: &str, name: &str) -> String {
@@ -266,6 +273,13 @@ mod tests {
             parse_repo("some-org/project-name").unwrap(),
             ("some-org", "project-name")
         );
+    }
+
+    #[test]
+    fn parse_repo_rejects_dot_segments_that_escape_the_cache() {
+        for repo in ["a/..", "../repo", "./repo", "a/.", "..", "."] {
+            assert!(parse_repo(repo).is_err(), "{repo} should not parse");
+        }
     }
 
     #[test]

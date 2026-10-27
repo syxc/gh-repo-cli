@@ -4,7 +4,7 @@
 //! variables, then from the OS-level proxy settings — so a proxy that changes
 //! on the system is picked up automatically by the next command.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct Config {
     pub cache_dir: PathBuf,
@@ -19,11 +19,20 @@ impl Config {
             .unwrap_or_default();
 
         Self {
-            cache_dir: home.join(".ghr-cache"),
+            cache_dir: resolve_cache_dir(&home, std::env::var_os("GH_CACHE_DIR").as_deref()),
             output_dir: home.join(".ghr-output"),
             proxy: resolve_proxy(&|name| std::env::var(name).ok()),
         }
     }
+}
+
+/// Cache location: a non-empty `GH_CACHE_DIR` overrides the default under
+/// the home directory.
+fn resolve_cache_dir(home: &Path, override_dir: Option<&std::ffi::OsStr>) -> PathBuf {
+    override_dir
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home.join(".ghr-cache"))
 }
 
 #[cfg(windows)]
@@ -223,6 +232,26 @@ mod tests {
                 .find(|(key, _)| *key == name)
                 .map(|(_, value)| value.to_string())
         })
+    }
+
+    #[test]
+    fn resolve_cache_dir_defaults_under_home() {
+        assert_eq!(
+            resolve_cache_dir(Path::new("/home/u"), None),
+            PathBuf::from("/home/u/.ghr-cache")
+        );
+    }
+
+    #[test]
+    fn resolve_cache_dir_honors_non_empty_override() {
+        assert_eq!(
+            resolve_cache_dir(Path::new("/home/u"), Some("/data/cache".as_ref())),
+            PathBuf::from("/data/cache")
+        );
+        assert_eq!(
+            resolve_cache_dir(Path::new("/home/u"), Some("".as_ref())),
+            PathBuf::from("/home/u/.ghr-cache")
+        );
     }
 
     #[test]

@@ -127,6 +127,12 @@ const ANALYZE_FLAGS: &[FlagDef] = &[
     HELP_FLAG,
     NO_CACHE_FLAG,
     FlagDef {
+        long: "depth",
+        short: Some('d'),
+        display: "-d, --depth",
+        kind: FlagKind::Depth,
+    },
+    FlagDef {
         long: "output",
         short: Some('o'),
         display: "-o, --output",
@@ -216,6 +222,7 @@ const COMMAND_SPECS: &[CommandSpec] = &[
   ghr analyze <repo> [flags]
 
 Flags:
+  -d, --depth int       Tree depth for the structure section (default 2)
   -h, --help            help for analyze
   -o, --output string   Save output to file
 
@@ -330,6 +337,7 @@ Global Flags:
 pub enum Command {
     Analyze {
         repo: String,
+        depth: i64,
         output: Option<String>,
     },
     Structure {
@@ -933,6 +941,7 @@ fn build_command(
     match spec.name {
         "analyze" => Command::Analyze {
             repo: repo(),
+            depth: flags.depth.unwrap_or(2),
             output: flags.output,
         },
         "structure" => Command::Structure {
@@ -1264,6 +1273,29 @@ mod tests {
         assert_eq!(
             parse_int_base0("99999999999999999999"),
             Err("value out of range")
+        );
+    }
+
+    #[test]
+    fn parse_maps_analyze_depth_with_default_two() {
+        let Command::Analyze { depth, .. } = parsed_command(&["analyze", "a/b"]) else {
+            panic!("expected analyze");
+        };
+        assert_eq!(depth, 2);
+
+        let Command::Analyze { depth, .. } = parsed_command(&["analyze", "a/b", "-d", "4"]) else {
+            panic!("expected analyze");
+        };
+        assert_eq!(depth, 4);
+    }
+
+    #[test]
+    fn analyze_help_documents_the_depth_flag() {
+        let spec = spec_by_name("analyze").unwrap();
+        assert!(
+            spec.usage.contains("--depth int"),
+            "usage missing --depth: {}",
+            spec.usage
         );
     }
 

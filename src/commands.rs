@@ -18,7 +18,11 @@ use crate::search::{self, SearchOptions};
 
 pub fn run(command: Command, config: &Config, no_cache: bool) -> Result<(), String> {
     match command {
-        Command::Analyze { repo, output } => analyze(&repo, output.as_deref(), config, no_cache),
+        Command::Analyze {
+            repo,
+            depth,
+            output,
+        } => analyze(&repo, depth, output.as_deref(), config, no_cache),
         Command::Structure {
             repo,
             depth,
@@ -53,6 +57,7 @@ pub fn run(command: Command, config: &Config, no_cache: bool) -> Result<(), Stri
 
 fn analyze(
     repo: &str,
+    depth: i64,
     output_file: Option<&str>,
     config: &Config,
     no_cache: bool,
@@ -61,7 +66,7 @@ fn analyze(
 
     let repo_path = clone_or_report(repo, config, no_cache)?;
     let info = git::get_repo_info(&repo_path);
-    let structure = fsutil::traverse_dir(&repo_path, 2, 0)
+    let structure = fsutil::traverse_dir(&repo_path, depth, 0)
         .map_err(|err| report(&fsutil::traverse_error(&err, &repo_path)))?;
 
     let mut file_types = HashMap::new();
@@ -87,7 +92,7 @@ fn analyze(
     output::print_header("\n📄 File Types");
     print_count_table("Extension", "Count", &file_types);
 
-    output::print_header("\n🌳 Directory Structure (depth=2)");
+    output::print_header(&format!("\n🌳 Directory Structure (depth={depth})"));
     output::display_tree(&structure, "");
 
     if let Some(output_file) = non_empty(output_file) {
