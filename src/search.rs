@@ -16,6 +16,9 @@ pub struct SearchResult {
     pub matches: Vec<String>,
 }
 
+/// How many leading bytes are sniffed for NUL to mark a file binary.
+const BINARY_SNIFF_LEN: usize = 8 * 1024;
+
 #[derive(Debug, Default)]
 pub struct SearchOptions {
     pub ext: Option<String>,
@@ -79,6 +82,10 @@ fn walk(
         let Ok(bytes) = std::fs::read(&path) else {
             continue;
         };
+        // NUL sniff like grep: binary files only produce mojibake matches.
+        if bytes.iter().take(BINARY_SNIFF_LEN).any(|&byte| byte == 0) {
+            continue;
+        }
         let content = String::from_utf8_lossy(&bytes);
         // Line counts fit i64 for any real file; the Go build used int as well.
         #[expect(clippy::cast_possible_wrap)]
@@ -275,6 +282,20 @@ mod tests {
         let files: Vec<&str> = results.iter().map(|r| r.file.as_str()).collect();
 
         assert_eq!(files, vec!["real.txt"]);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn search_files_skips_binary_files() {
+        let dir = temp_dir("binary");
+        std::fs::write(dir.join("blob.bin"), b"hello\x00binary").unwrap();
+        std::fs::write(dir.join("text.txt"), "hello").unwrap();
+
+        let results = search(&dir, "hello", &SearchOptions::default());
+        let files: Vec<&str> = results.iter().map(|r| r.file.as_str()).collect();
+
+        assert_eq!(files, vec!["text.txt"]);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

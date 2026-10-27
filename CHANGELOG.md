@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `analyze --depth <n>` controls the tree depth of the structure section (default 2, unchanged)
+- `GH_CACHE_DIR` overrides the cache location (default `~/.ghr-cache`)
+
+### Changed
+- `search` skips binary files (NUL sniff on the first 8 KiB) instead of matching mojibake lines
+
+### Fixed
+- Repositories with dot path segments (`a/..`) are rejected; they could previously resolve cache operations to the cache root or outside it
+- IO error wording on non-unix platforms now uses common error kinds instead of "unknown error"
+
 ## [0.3.2] - 2026-10-28
 
 ### Changed

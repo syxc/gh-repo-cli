@@ -191,10 +191,20 @@ pub fn directory_size(dir: &Path) -> u64 {
 
 /// Formats an IO error the way Go's `os` package does ("open /path: no such
 /// file or directory"), keeping CLI error output identical to the Go build.
+/// Common kinds are mapped directly so the wording is correct on every
+/// platform; unmapped cases fall back to the raw errno, then the error text.
 pub fn describe_io(err: &io::Error, op: &str, path: &Path) -> String {
-    let detail = match err.raw_os_error() {
-        Some(code) => errno_message(code).to_owned(),
-        None => err.to_string(),
+    let detail = match err.kind() {
+        io::ErrorKind::NotFound => "no such file or directory".to_owned(),
+        io::ErrorKind::PermissionDenied => "permission denied".to_owned(),
+        io::ErrorKind::IsADirectory => "is a directory".to_owned(),
+        io::ErrorKind::NotADirectory => "not a directory".to_owned(),
+        io::ErrorKind::DirectoryNotEmpty => "directory not empty".to_owned(),
+        io::ErrorKind::AlreadyExists => "file exists".to_owned(),
+        _ => match err.raw_os_error() {
+            Some(code) => errno_message(code).to_owned(),
+            None => err.to_string(),
+        },
     };
 
     format!("{op} {}: {}", path.display(), detail)
@@ -409,6 +419,23 @@ mod tests {
         std::fs::write(dir.join("sub").join("b.txt"), "123").unwrap();
 
         assert_eq!(directory_size(&dir), 8);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn describe_io_maps_directory_not_empty_via_error_kind() {
+        let dir = temp_dir("ioerr");
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("sub").join("f.txt"), "x").unwrap();
+
+        let err = std::fs::remove_dir(dir.join("sub")).unwrap_err();
+        let message = describe_io(&err, "remove", &dir.join("sub"));
+
+        assert!(
+            message.ends_with(": directory not empty"),
+            "unexpected message: {message}"
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }
