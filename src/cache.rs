@@ -22,9 +22,9 @@ pub fn parse_duration(raw: &str) -> Result<Duration, String> {
         None => return Err(invalid()),
     };
     let multiplier: u64 = match unit.to_lowercase().as_str() {
-        "h" => 3600,
-        "d" => 86400,
-        "w" => 604800,
+        "h" => 3_600,
+        "d" => 86_400,
+        "w" => 604_800,
         _ => return Err(invalid()),
     };
     let value: u64 = digits.parse().map_err(|_| invalid())?;
