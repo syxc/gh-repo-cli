@@ -77,7 +77,9 @@ pub fn clone_repo(
     let mut command = Command::new("git");
     command
         .args(proxy_args(proxy))
-        .args(["clone", "--depth", "1"])
+        // --single-branch is implied by --depth 1; spelled out so the cache is
+        // guaranteed to hold only the default branch tip.
+        .args(["clone", "--depth", "1", "--single-branch"])
         .arg(build_clone_url(owner, name))
         .arg(&repo_path);
 
@@ -100,6 +102,8 @@ pub fn clone_repo(
 
 /// Fetches origin and hard-resets to `origin/HEAD` within a shared 30s
 /// deadline; git output is discarded like the Go build's `exec.Command`.
+/// A final reflog-expiring gc prunes superseded tips, so long-lived caches
+/// do not accumulate unreachable objects.
 fn fetch_latest(repo_path: &Path, proxy: &str) -> bool {
     let deadline = Instant::now() + UPDATE_TIMEOUT;
 
@@ -117,8 +121,27 @@ fn fetch_latest(repo_path: &Path, proxy: &str) -> bool {
         .arg(repo_path)
         .args(["reset", "--hard", "origin/HEAD"]);
 
-    is_success(&run_with_deadline(fetch, deadline, StreamMode::Discard))
-        && is_success(&run_with_deadline(reset, deadline, StreamMode::Discard))
+    if !(is_success(&run_with_deadline(fetch, deadline, StreamMode::Discard))
+        && is_success(&run_with_deadline(reset, deadline, StreamMode::Discard)))
+    {
+        return false;
+    }
+
+    // Non-fatal: the cache stays usable if gc cannot run (e.g. a concurrent
+    // process holds a lock).
+    let mut gc = Command::new("git");
+    gc.args([
+        "-c",
+        "gc.reflogExpire=now",
+        "-c",
+        "gc.reflogExpireUnreachable=now",
+    ])
+    .arg("-C")
+    .arg(repo_path)
+    .args(["gc", "--prune=now", "--quiet"]);
+    let _ = run_with_deadline(gc, deadline, StreamMode::Discard);
+
+    true
 }
 
 /// Reads repository metadata; `None` when the path is not a usable git repo.

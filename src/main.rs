@@ -1,6 +1,7 @@
 //! ghr — a lightweight CLI tool for analyzing GitHub repositories without API
 //! tokens. It clones repositories with `git` instead of calling the GitHub API.
 
+mod cache;
 mod cli;
 mod color;
 mod commands;

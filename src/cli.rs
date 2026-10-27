@@ -95,6 +95,7 @@ enum FlagKind {
     Ext,
     IgnoreCase,
     All,
+    Old,
 }
 
 struct FlagDef {
@@ -194,6 +195,12 @@ const CLEAN_FLAGS: &[FlagDef] = &[
         kind: FlagKind::All,
     },
     FlagDef {
+        long: "old",
+        short: None,
+        display: "--old",
+        kind: FlagKind::Old,
+    },
+    FlagDef {
         long: "output",
         short: Some('o'),
         display: "-o, --output",
@@ -224,9 +231,10 @@ Global Flags:
   ghr clean [repo] [flags]
 
 Flags:
-  -a, --all      Clean all cached repositories
-  -h, --help     help for clean
-  -o, --output   Clean output directory as well
+  -a, --all          Clean all cached repositories
+  -h, --help         help for clean
+      --old string   Remove cached repositories unused for this long (e.g. 30d)
+  -o, --output       Clean output directory as well
 
 Global Flags:
       --no-cache   Bypass cache and re-clone",
@@ -352,6 +360,7 @@ pub enum Command {
         repo: Option<String>,
         all: bool,
         output: bool,
+        old: Option<String>,
     },
 }
 
@@ -690,6 +699,7 @@ struct ParsedFlags {
     ignore_case: bool,
     all: bool,
     output_dir: bool,
+    old: Option<String>,
 }
 
 /// Applies a long flag; returns whether the next argv entry was consumed as
@@ -732,6 +742,11 @@ fn apply_flag(
         FlagKind::OutputStr => {
             let (value, consumed) = flag_value(inline, next, def).map_err(flagged)?;
             flags.output = Some(value);
+            Ok(consumed)
+        }
+        FlagKind::Old => {
+            let (value, consumed) = flag_value(inline, next, def).map_err(flagged)?;
+            flags.old = Some(value);
             Ok(consumed)
         }
         FlagKind::Ext => {
@@ -796,7 +811,7 @@ fn apply_short_cluster(
                 }
                 rest = remainder;
             }
-            FlagKind::OutputStr | FlagKind::Ext | FlagKind::Depth => {
+            FlagKind::OutputStr | FlagKind::Ext | FlagKind::Old | FlagKind::Depth => {
                 let (raw, consumed_next) = if remainder.is_empty() {
                     let Some(value) = next else {
                         return Err(flagged(format!(
@@ -824,6 +839,8 @@ fn apply_short_cluster(
                     }
                 } else if def.kind == FlagKind::Ext {
                     flags.ext = Some(raw);
+                } else if def.kind == FlagKind::Old {
+                    flags.old = Some(raw);
                 } else {
                     flags.output = Some(raw);
                 }
@@ -947,6 +964,7 @@ fn build_command(
             repo: positionals.first().cloned(),
             all: flags.all,
             output: flags.output_dir,
+            old: flags.old,
         },
         other => unreachable!("help is handled before command construction: {other}"),
     }
@@ -1247,6 +1265,31 @@ mod tests {
             parse_int_base0("99999999999999999999"),
             Err("value out of range")
         );
+    }
+
+    #[test]
+    fn parse_maps_clean_old_flag() {
+        let Command::Clean { old, all, .. } = parsed_command(&["clean", "--old", "30d"]) else {
+            panic!("expected clean");
+        };
+        assert_eq!(old.as_deref(), Some("30d"));
+        assert!(!all);
+
+        let Command::Clean { old, .. } = parsed_command(&["clean"]) else {
+            panic!("expected clean");
+        };
+        assert_eq!(old, None);
+    }
+
+    #[test]
+    fn clean_help_documents_the_old_flag() {
+        let spec = spec_by_name("clean").unwrap();
+        assert!(
+            spec.usage.contains("--old string"),
+            "usage missing --old: {}",
+            spec.usage
+        );
+        assert!(spec.usage.contains("30d"));
     }
 
     #[test]

@@ -43,6 +43,8 @@ ghr readme facebook/react
 
 ghr clean facebook/react                # 删除单个缓存仓库
 ghr clean --all                         # 清空缓存
+ghr clean --old 30d                     # 清理超过 30 天未使用的仓库
+ghr clean                               # 显示用法与缓存统计
 ```
 
 需要注意的行为：
@@ -69,6 +71,16 @@ GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # 临时覆盖
 ## 缓存与输出
 
 仓库缓存在 `~/.ghr-cache/<owner>/<repo>`，`ghr clean` 用于删除其中的条目。`~/.ghr-output/` 仅被 `ghr clean -o` 使用（整体删除）；`-o` 本身始终写入你指定的路径。
+
+长期使用的缓存不会失控膨胀：
+
+- 克隆是浅克隆且只取默认分支的最新提交（`--depth 1 --single-branch`）；每次刷新会过期 reflog 并修剪被替换的对象，缓存仓库不会随时间增大。
+- LRU 式保留策略：每次使用仓库都会刷新其"最近使用"标记。`ghr clean --old 30d` 逐出超过 30 天未使用的仓库；裸 `ghr clean` 会显示缓存大小与最旧条目作为提醒。
+- 自动逐出：设置 `GH_CACHE_MAX_AGE`（格式相同，如 `30d`），ghr 在每次调用访问缓存前自动清理过期仓库：
+
+  ```bash
+  export GH_CACHE_MAX_AGE=30d
+  ```
 
 ## 文档
 
