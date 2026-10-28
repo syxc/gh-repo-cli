@@ -42,7 +42,7 @@ impl CacheLock {
         loop {
             match file.try_lock_exclusive() {
                 Ok(()) => break,
-                Err(err) if err.kind() == io::ErrorKind::WouldBlock => {
+                Err(err) if err.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {
                     if Instant::now() >= deadline {
                         return Err(io::Error::new(
                             io::ErrorKind::TimedOut,
@@ -359,8 +359,8 @@ mod tests {
             .open(dir.join(LOCK_NAME))
             .unwrap();
         assert_eq!(
-            other.try_lock_exclusive().unwrap_err().kind(),
-            io::ErrorKind::WouldBlock
+            other.try_lock_exclusive().unwrap_err().raw_os_error(),
+            fs2::lock_contended_error().raw_os_error()
         );
         drop(first);
         other.try_lock_exclusive().unwrap();
