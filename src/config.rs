@@ -107,12 +107,12 @@ fn detect_system_proxy() -> String {
         return String::new();
     }
 
-    for (schema, scheme) in [
+    for (schema, protocol) in [
         ("org.gnome.system.proxy.https", "http"),
         ("org.gnome.system.proxy.http", "http"),
         ("org.gnome.system.proxy.socks", "socks5h"),
     ] {
-        if let Some(url) = gsettings_proxy_url(schema, scheme) {
+        if let Some(url) = gsettings_proxy_url(schema, protocol) {
             return url;
         }
     }
@@ -121,14 +121,14 @@ fn detect_system_proxy() -> String {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn gsettings_proxy_url(schema: &str, scheme: &str) -> Option<String> {
+fn gsettings_proxy_url(schema: &str, protocol: &str) -> Option<String> {
     let host = gsettings_value(schema, "host")?;
     let port = gsettings_value(schema, "port")?;
     if host.is_empty() || port.is_empty() {
         return None;
     }
 
-    Some(format!("{scheme}://{host}:{port}"))
+    Some(format!("{protocol}://{host}:{port}"))
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
