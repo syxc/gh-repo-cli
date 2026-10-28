@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `analyze --sections <list>` reports only the requested sections (`info`, `languages`, `file-types`, `structure`); the JSON output contains only those keys
+- SOCKS proxies configured at the OS level are now detected (macOS `scutil`, GNOME `gsettings`, Windows registry) and passed to git as `socks5h://`; HTTP(S) proxies still win
 - `analyze --depth <n>` controls the tree depth of the structure section (default 2, unchanged)
 - `GH_CACHE_DIR` overrides the cache location (default `~/.ghr-cache`)
 
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search` skips binary files (NUL sniff on the first 8 KiB) instead of matching mojibake lines
 
 ### Fixed
+- `analyze` statistics are always computed at depth 2 regardless of `--depth`; a shallow `--depth` could previously undercount languages and file types
 - Repositories with dot path segments (`a/..`) are rejected; they could previously resolve cache operations to the cache root or outside it
 - IO error wording on non-unix platforms now uses common error kinds instead of "unknown error"
 

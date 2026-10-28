@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::cache;
-use crate::cli::Command;
+use crate::cli::{AnalyzeSections, Command};
 use crate::color;
 use crate::config::Config;
 use crate::fsutil::{self, Kind};
@@ -21,8 +21,9 @@ pub fn run(command: Command, config: &Config, no_cache: bool) -> Result<(), Stri
         Command::Analyze {
             repo,
             depth,
+            sections,
             output,
-        } => analyze(&repo, depth, output.as_deref(), config, no_cache),
+        } => analyze(&repo, depth, sections, output.as_deref(), config, no_cache),
         Command::Structure {
             repo,
             depth,
@@ -55,9 +56,14 @@ pub fn run(command: Command, config: &Config, no_cache: bool) -> Result<(), Stri
     }
 }
 
+/// Statistics always cover this depth, like the original build, so the
+/// counts do not shift when `--depth` changes the displayed tree.
+const STATS_DEPTH: i64 = 2;
+
 fn analyze(
     repo: &str,
     depth: i64,
+    sections: AnalyzeSections,
     output_file: Option<&str>,
     config: &Config,
     no_cache: bool,
@@ -65,48 +71,87 @@ fn analyze(
     println!("{}", color::blue(&format!("\n📊 Analyzing {repo}...\n")));
 
     let repo_path = clone_or_report(repo, config, no_cache)?;
-    let info = git::get_repo_info(&repo_path);
-    let structure = fsutil::traverse_dir(&repo_path, depth, 0)
-        .map_err(|err| report(&fsutil::traverse_error(&err, &repo_path)))?;
+    let info = if sections.info {
+        git::get_repo_info(&repo_path)
+    } else {
+        None
+    };
 
-    let mut file_types = HashMap::new();
-    let mut languages = HashMap::new();
-    fsutil::count_file_types(&structure, &mut file_types, &mut languages);
-    // Like the Go build, only the top 10 reach the tables and the JSON output.
-    let languages = top_ten(sorted_by_count(languages));
-    let file_types = top_ten(sorted_by_count(file_types));
+    let stats = if sections.needs_stats() {
+        Some(
+            fsutil::count_file_stats(&repo_path, STATS_DEPTH)
+                .map_err(|err| report(&fsutil::traverse_error(&err, &repo_path)))?,
+        )
+    } else {
+        None
+    };
+    let languages = stats
+        .as_ref()
+        .map(|stats| top_ten(sorted_by_count(&stats.languages)))
+        .unwrap_or_default();
+    let file_types = stats
+        .as_ref()
+        .map(|stats| top_ten(sorted_by_count(&stats.file_types)))
+        .unwrap_or_default();
 
-    output::print_header("📁 Repository Info");
-    println!("   Name: {repo}");
-    if let Some(info) = &info {
-        println!("   Last Update: {}", info.date);
-        println!(
-            "   Commit: {}",
-            info.commit.chars().take(7).collect::<String>()
-        );
+    let structure = if sections.structure {
+        Some(
+            fsutil::traverse_dir(&repo_path, depth, 0)
+                .map_err(|err| report(&fsutil::traverse_error(&err, &repo_path)))?,
+        )
+    } else {
+        None
+    };
+
+    if sections.info {
+        output::print_header("📁 Repository Info");
+        println!("   Name: {repo}");
+        if let Some(info) = &info {
+            println!("   Last Update: {}", info.date);
+            println!(
+                "   Commit: {}",
+                info.commit.chars().take(7).collect::<String>()
+            );
+        }
     }
 
-    output::print_header("\n💻 Top Languages");
-    print_count_table("Language", "Files", &languages);
+    if sections.languages {
+        output::print_header("\n💻 Top Languages");
+        print_count_table("Language", "Files", &languages);
+    }
 
-    output::print_header("\n📄 File Types");
-    print_count_table("Extension", "Count", &file_types);
+    if sections.file_types {
+        output::print_header("\n📄 File Types");
+        print_count_table("Extension", "Count", &file_types);
+    }
 
-    output::print_header(&format!("\n🌳 Directory Structure (depth={depth})"));
-    output::display_tree(&structure, "");
+    if let Some(tree) = &structure {
+        output::print_header(&format!("\n🌳 Directory Structure (depth={depth})"));
+        output::display_tree(tree, "");
+    }
 
     if let Some(output_file) = non_empty(output_file) {
-        let payload = Json::Object(vec![
-            ("fileTypes", count_json(&file_types)),
-            (
+        // Keys stay alphabetical; unselected sections are omitted entirely.
+        let mut fields = Vec::new();
+        if sections.file_types {
+            fields.push(("fileTypes", count_json(&file_types)));
+        }
+        if sections.info {
+            fields.push((
                 "info",
                 info.as_ref().map_or(Json::Null, git::RepoInfo::to_json),
-            ),
-            ("languages", count_json(&languages)),
-            ("repo", Json::Str(repo.to_owned())),
-            ("structure", fsutil::items_to_json(&structure)),
-        ]);
-        fsutil::save_output(&payload, output_file).map_err(|message| report(&message))?;
+            ));
+        }
+        if sections.languages {
+            fields.push(("languages", count_json(&languages)));
+        }
+        fields.push(("repo", Json::Str(repo.to_owned())));
+        if let Some(tree) = &structure {
+            fields.push(("structure", fsutil::items_to_json(tree)));
+        }
+
+        fsutil::save_output(&Json::Object(fields), output_file)
+            .map_err(|message| report(&message))?;
         println!(
             "{}",
             color::green(&format!("\n✅ Output saved to {output_file}"))
@@ -531,8 +576,11 @@ fn join_repo_path(base: &Path, sub: &str) -> PathBuf {
     parts.into_iter().collect()
 }
 
-fn sorted_by_count(counts: HashMap<String, i64>) -> Vec<(String, i64)> {
-    let mut pairs: Vec<(String, i64)> = counts.into_iter().collect();
+fn sorted_by_count(counts: &HashMap<String, i64>) -> Vec<(String, i64)> {
+    let mut pairs: Vec<(String, i64)> = counts
+        .iter()
+        .map(|(key, value)| (key.clone(), *value))
+        .collect();
     // Value descending; the key tie-break keeps output deterministic where
     // the Go build relied on unstable map iteration order.
     pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
@@ -588,7 +636,7 @@ mod tests {
             ("rust".to_owned(), 3),
         ]);
 
-        let sorted = sorted_by_count(counts);
+        let sorted = sorted_by_count(&counts);
         let keys: Vec<&str> = sorted.iter().map(|(key, _)| key.as_str()).collect();
 
         assert_eq!(keys, vec!["python", "go", "js", "rust"]);
@@ -596,14 +644,15 @@ mod tests {
 
     #[test]
     fn sorted_by_count_breaks_ties_by_key() {
-        let sorted = sorted_by_count(HashMap::from([("b".to_owned(), 1), ("a".to_owned(), 1)]));
+        let counts = HashMap::from([("b".to_owned(), 1), ("a".to_owned(), 1)]);
+        let sorted = sorted_by_count(&counts);
 
         assert_eq!(sorted[0].0, "a");
     }
 
     #[test]
     fn sorted_by_count_handles_empty_input() {
-        assert_eq!(sorted_by_count(HashMap::new()), Vec::new());
+        assert_eq!(sorted_by_count(&HashMap::new()), Vec::new());
     }
 
     #[test]
