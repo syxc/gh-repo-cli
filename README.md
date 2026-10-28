@@ -74,7 +74,7 @@ GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # temporary overri
 
 ## Cache and output
 
-Repositories are cached in `~/.ghr-cache/<owner>/<repo>`. Set `GH_CACHE_DIR` to use another location; an existing directory must be empty or a recognized ghr cache. Commands using the same cache root run one at a time, with a lock wait of up to 30 seconds.
+Repositories are cached in `~/.ghr-cache/<owner>/<repo>`. Set `GH_CACHE_DIR` to use another location; an existing directory must be empty or a recognized ghr cache. Regular `.DS_Store` files at the cache root or owner level are preserved and do not block recognition; GitHub owner and repository names are compared without ASCII case sensitivity. Commands using the same cache root run one at a time, with a lock wait of up to 30 seconds.
 
 - Clones use depth 1. Each refresh fetches the current default branch at depth 1 without tags, then runs `git gc --auto` with Git's normal expiry policy. Cache size can grow with repository content and retained objects.
 - Cleanup removes only verified GitHub repository directories, preserving the cache root and unrelated files. Symbolic links at the owner/repo path are rejected.

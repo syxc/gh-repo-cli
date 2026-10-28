@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-10-28
+
+### Fixed
+- Existing caches containing regular `.DS_Store` files at the cache root or owner level are recognized without deleting those files.
+- Cached GitHub repositories are recognized when owner or repository names differ only in ASCII letter case between the directory and remote URL.
+
 ## [0.3.3] - 2026-10-28
 
 ### Added

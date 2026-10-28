@@ -169,6 +169,29 @@ fn refresh_keeps_history_shallow_and_tracks_default_branch_changes() {
 }
 
 #[test]
+fn legacy_cache_with_finder_metadata_is_reused_without_deleting_files() {
+    let fixture = Fixture::new("legacy-finder");
+    fixture.succeed(&["readme", "owner/repo"]);
+    std::fs::remove_file(fixture.root.join("cache/.ghr-cache-root")).unwrap();
+    for directory in [fixture.root.join("cache"), fixture.root.join("cache/owner")] {
+        std::fs::write(directory.join(".DS_Store"), "Finder metadata").unwrap();
+    }
+    let kept = fixture.cached_repo().join("local-cache-sentinel");
+    std::fs::write(&kept, "keep cached files").unwrap();
+
+    let output = fixture.succeed(&["readme", "owner/repo"]);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("fixture"));
+    assert_eq!(std::fs::read(&kept).unwrap(), b"keep cached files");
+    for directory in [fixture.root.join("cache"), fixture.root.join("cache/owner")] {
+        assert_eq!(
+            std::fs::read(directory.join(".DS_Store")).unwrap(),
+            b"Finder metadata"
+        );
+    }
+    assert!(fixture.root.join("cache/.ghr-cache-root").is_file());
+}
+
+#[test]
 fn clean_all_preserves_unrelated_data_and_rejects_unrecognized_roots() {
     let fixture = Fixture::new("clean-all");
     fixture.succeed(&["readme", "owner/repo"]);

@@ -79,7 +79,7 @@ fn validate_root(cache_dir: &Path) -> io::Result<()> {
     let contents = std::fs::read_dir(cache_dir)?.collect::<io::Result<Vec<_>>>()?;
     let unmarked: Vec<_> = contents
         .iter()
-        .filter(|entry| entry.file_name() != LOCK_NAME)
+        .filter(|entry| entry.file_name() != LOCK_NAME && !is_finder_metadata(entry))
         .collect();
     if unmarked.is_empty() {
         return Ok(());
@@ -88,9 +88,9 @@ fn validate_root(cache_dir: &Path) -> io::Result<()> {
     let legacy = unmarked.iter().all(|owner| {
         owner.file_type().is_ok_and(|kind| kind.is_dir())
             && std::fs::read_dir(owner.path()).is_ok_and(|repos| {
-                repos
-                    .into_iter()
-                    .all(|repo| repo.is_ok_and(|repo| is_cached_repo(&repo.path())))
+                repos.into_iter().all(|repo| {
+                    repo.is_ok_and(|repo| is_finder_metadata(&repo) || is_cached_repo(&repo.path()))
+                })
             })
     });
     if legacy {
@@ -100,6 +100,10 @@ fn validate_root(cache_dir: &Path) -> io::Result<()> {
     Err(io::Error::other(
         "cache directory contains unrecognized data; set GH_CACHE_DIR to an empty directory",
     ))
+}
+
+fn is_finder_metadata(entry: &std::fs::DirEntry) -> bool {
+    entry.file_name() == ".DS_Store" && entry.file_type().is_ok_and(|kind| kind.is_file())
 }
 
 pub fn is_cached_repo(path: &Path) -> bool {
@@ -124,7 +128,8 @@ pub fn is_cached_repo(path: &Path) -> bool {
     if !std::fs::symlink_metadata(&config).is_ok_and(|meta| meta.is_file()) {
         return false;
     }
-    crate::git::origin_url(path).is_some_and(|url| url == crate::git::build_clone_url(owner, name))
+    crate::git::origin_url(path)
+        .is_some_and(|url| url.eq_ignore_ascii_case(&crate::git::build_clone_url(owner, name)))
         && crate::git::has_local_worktree(path)
 }
 
@@ -335,6 +340,123 @@ mod tests {
                 .unwrap()
                 .success()
         );
+    }
+
+    #[test]
+    fn legacy_cache_accepts_finder_metadata_at_root_and_owner_levels() {
+        let dir = temp_cache("finder-metadata");
+        let repo = dir.join("owner").join("repo");
+        init_repo(&repo);
+        for parent in [&dir, &dir.join("owner")] {
+            std::fs::write(parent.join(".DS_Store"), "Finder metadata").unwrap();
+        }
+
+        validate_root(&dir).unwrap();
+        for parent in [&dir, &dir.join("owner")] {
+            assert_eq!(
+                std::fs::read(parent.join(".DS_Store")).unwrap(),
+                b"Finder metadata"
+            );
+        }
+        assert_eq!(scan(&dir).len(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_cache_accepts_github_owner_and_repo_case_variations() {
+        let dir = temp_cache("github-case");
+        let repo = dir.join("owner").join("repo");
+        init_repo(&repo);
+        assert!(
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(&repo)
+                .args([
+                    "config",
+                    "remote.origin.url",
+                    "https://github.com/Owner/Repo.git"
+                ])
+                .status()
+                .unwrap()
+                .success()
+        );
+
+        assert!(is_cached_repo(&repo));
+        validate_root(&dir).unwrap();
+        assert_eq!(repo_path(&dir, "owner/repo").unwrap(), repo);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_cache_still_rejects_unknown_files_beside_finder_metadata() {
+        let dir = temp_cache("finder-unknown");
+        let repo = dir.join("owner").join("repo");
+        init_repo(&repo);
+        std::fs::write(dir.join(".DS_Store"), "Finder metadata").unwrap();
+        validate_root(&dir).unwrap();
+        for parent in [&dir, &dir.join("owner")] {
+            let unknown = parent.join("personal.txt");
+            std::fs::write(&unknown, "keep").unwrap();
+            assert!(validate_root(&dir).is_err());
+            assert_eq!(std::fs::read(&unknown).unwrap(), b"keep");
+            std::fs::remove_file(unknown).unwrap();
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_cache_still_rejects_other_remotes() {
+        let dir = temp_cache("other-remotes");
+        let repo = dir.join("owner").join("repo");
+        init_repo(&repo);
+        for remote in [
+            "https://github.com/Owner/Other.git",
+            "https://example.invalid/Owner/Repo.git",
+        ] {
+            assert!(
+                std::process::Command::new("git")
+                    .arg("-C")
+                    .arg(&repo)
+                    .args(["config", "remote.origin.url", remote])
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+            assert!(!is_cached_repo(&repo));
+            assert!(validate_root(&dir).is_err());
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn cache_root_accepts_only_regular_finder_metadata() {
+        let dir = temp_cache("finder-only");
+        std::fs::write(dir.join(".DS_Store"), "Finder metadata").unwrap();
+        validate_root(&dir).unwrap();
+        std::fs::remove_file(dir.join(".DS_Store")).unwrap();
+        std::fs::create_dir_all(dir.join(".DS_Store").join("unknown")).unwrap();
+
+        assert!(validate_root(&dir).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn legacy_cache_rejects_finder_metadata_symlinks() {
+        let dir = temp_cache("finder-symlink");
+        let repo = dir.join("owner").join("repo");
+        init_repo(&repo);
+        let target = repo.join(".git").join("config");
+        let original = std::fs::read(&target).unwrap();
+        validate_root(&dir).unwrap();
+        std::os::unix::fs::symlink(&target, dir.join(".DS_Store")).unwrap();
+
+        assert!(validate_root(&dir).is_err());
+        std::fs::remove_file(dir.join(".DS_Store")).unwrap();
+        std::os::unix::fs::symlink(&target, dir.join("owner").join(".DS_Store")).unwrap();
+        assert!(validate_root(&dir).is_err());
+        assert_eq!(std::fs::read(target).unwrap(), original);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
