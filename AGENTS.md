@@ -9,26 +9,26 @@ ghr is a Rust CLI that clones GitHub repositories with `git` and analyzes them l
 ## Commands
 
 ```bash
-cargo test                                                        # unit tests
+cargo test --locked                                               # unit tests
 cargo fmt --all --check                                           # formatting (authoritative)
 cargo clippy --all-targets --all-features --locked -- -D warnings  # lint, same as CI
 cargo run -q -- analyze octocat/Hello-World                       # run locally
 ```
 
-CI runs these plus a 5-target build matrix.
+CI runs tests on Linux, macOS and Windows, checks Rust 1.85 with `--locked`, and builds five targets. Formatting and clippy run on Linux.
 
-Local gotcha: when `~/.cargo/config.toml` sets a `rustc-wrapper` (e.g. kache), clippy can replay stale diagnostics and hide real lint errors. If local clippy is green but CI is red - or any clippy result looks stale - recheck without the wrapper before trusting either side:
+If local clippy and CI disagree, compare toolchains and targets, then disable any configured `rustc-wrapper` to isolate its effect:
 
 ```bash
-CARGO_RUSTC_WRAPPER= cargo clippy --all-targets --all-features --locked -- -D warnings
+RUSTC_WRAPPER= cargo clippy --all-targets --all-features --locked -- -D warnings
 ```
 
-Judge clippy by its EXIT CODE, never by grepping the output: shell wrappers on this machine (rtk shim, kache) reformat and summarize clippy results, so text-based checks undercount. Both misses in October 2026 (unreadable_literal, map_unwrap_or) were visible locally but read as clean through output parsing.
+Use clippy's exit code to determine success. Summarized output is not a substitute for the exit code.
 
-`cfg`-gated code is invisible to a host-only clippy run (the `similar_names` hit in the Linux-only gsettings path passed on macOS). Lint the CI target too:
+A host-only clippy run excludes code behind other platform `cfg` conditions. Check changed platform code on its target too:
 
 ```bash
-CARGO_RUSTC_WRAPPER= cargo clippy --target aarch64-unknown-linux-musl --all-targets --all-features --locked -- -D warnings
+RUSTC_WRAPPER= cargo clippy --target aarch64-unknown-linux-musl --all-targets --all-features --locked -- -D warnings
 ```
 
 ## Layout
@@ -37,8 +37,8 @@ CARGO_RUSTC_WRAPPER= cargo clippy --target aarch64-unknown-linux-musl --all-targ
 |------|----------------|
 | `src/cli.rs` | Argument parsing, hand-maintained help/usage text, exit codes, Cobra-compatible error strings |
 | `src/commands.rs` | Subcommand implementations; output order and wording matter |
-| `src/git.rs` | Repo parsing, cached shallow clones, fetch+reset+prune, repo metadata |
-| `src/cache.rs` | Cache scan, last-used detection, duration parsing, retention |
+| `src/git.rs` | Repo parsing, shallow clone/refresh, automatic Git maintenance, repo metadata |
+| `src/cache.rs` | Cache validation, locking, last-used detection, duration parsing, retention |
 | `src/fsutil.rs` | Directory trees, file IO, size formatting, Go-style IO error text |
 | `src/search.rs` | Regex search, extension filter, language table |
 | `src/output.rs` | Tables, trees, headers (character-based padding) |
@@ -52,7 +52,9 @@ CARGO_RUSTC_WRAPPER= cargo clippy --target aarch64-unknown-linux-musl --all-targ
 - Help/usage texts in `cli.rs` are hand-maintained to match Cobra templates. A new flag needs both a `FlagDef` entry and a row in the command's usage constant, in Cobra's alphabetical flag order.
 - Error flow: print `❌ Error: ...` to stdout at the error site (`report()`/`print_error`), return `Err(message)`; the cli layer adds `Error: <msg>` plus usage on stderr and exits 1.
 - JSON output files must stay Go-compatible: no serde; extend `json.rs` (HTML escaping of `<>&`, declared field order, `null` vs `[]`).
-- Cache retention uses `.git/FETCH_HEAD` mtime as the last-used marker; eviction never removes the repository being used.
+- Cache commands share one file lock per cache root and wait at most 30 seconds. Cleanup removes only verified GitHub repository directories, preserving the cache root and unrelated files; owner/repo symlinks are rejected. Adopt a `GH_CACHE_DIR` only if it is empty or a recognized existing cache.
+- Refresh with `git fetch --depth 1 --no-tags origin HEAD` and reset to the fetched default branch. Use `git gc --auto` with Git's normal expiry policy; do not force full pruning on each refresh.
+- Keep `read`, `ls`, `search` and `readme` within the repository boundary, including symbolic-link targets. `analyze` statistics cover depth 2 and retain the top 10 entries per table; JSON always includes `repo`.
 - Lints: pedantic is warn, CI denies warnings. Silence only with `#[expect(clippy::lint)]` plus a reason comment.
 - `.cargo/config.toml` pins the aarch64-unknown-linux-musl linker to rust-lld; the release matrix needs it. Do not remove.
 - Clone/update behavior can only be tested against a real git remote: create a local bare repo and clone with `file://` URLs (plain local paths ignore `--depth`).
@@ -64,9 +66,9 @@ CARGO_RUSTC_WRAPPER= cargo clippy --target aarch64-unknown-linux-musl --all-targ
 
 ## Releases
 
-1. Bump `version` in `Cargo.toml`, move CHANGELOG `[Unreleased]` to `[x.y.z] - <date>`, commit on a branch, merge via PR.
-2. Push tag `vX.Y.Z` on master; the Release workflow runs tests + clippy, builds 5 targets, and publishes `ghr_<version>_<os>_<arch>` archives plus `checksums.txt`.
-3. `ghr --version` comes from `Cargo.toml`; keep the tag and the manifest in sync.
+1. Bump `version` in `Cargo.toml`, refresh `Cargo.lock`, and move CHANGELOG `[Unreleased]` entries to `[x.y.z] - <date>`. Validate, commit on a branch, and merge via PR.
+2. Push tag `vX.Y.Z` on master. Release rejects a tag/manifest mismatch or missing release notes, runs tests and clippy, then builds five targets and publishes archives plus `checksums.txt`.
+3. `ghr --version` comes from `Cargo.toml`. Notes use `RUNNER_TEMP` and link to the tagged changelog; see `docs/RELEASE_WORKFLOW.md` for local metadata checks.
 
 ## Commits
 

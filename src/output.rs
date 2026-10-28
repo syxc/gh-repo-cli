@@ -32,7 +32,10 @@ fn tree_lines(items: &[FileItem], prefix: &str) -> Vec<String> {
             Kind::File => "📄",
         };
 
-        lines.push(format!("{prefix}{connector}{icon} {}", item.name));
+        lines.push(format!(
+            "{prefix}{connector}{icon} {}",
+            color::escape_controls(&item.name)
+        ));
 
         let Some(children) = item
             .children
@@ -98,6 +101,7 @@ fn render_table(headers: &[&str], rows: &[Vec<String>], widths: &[usize]) -> Vec
 }
 
 fn pad_cell(cell: &str, width: usize) -> String {
+    let cell = color::escape_controls(cell);
     let length = cell.chars().count();
     if length >= width {
         return cell.chars().take(width).collect();
@@ -159,6 +163,28 @@ mod tests {
     #[test]
     fn render_table_without_headers_is_empty() {
         assert_eq!(render_table(&[], &[], &[]), Vec::<String>::new());
+    }
+
+    #[test]
+    fn regression_tree_escapes_terminal_controls_in_file_names() {
+        let tree = vec![FileItem {
+            name: "\u{1b}]52;c;U1lOVEhFVElD\u{7}\nfile.txt".to_owned(),
+            path: "unused".to_owned(),
+            kind: Kind::File,
+            children: None,
+        }];
+
+        assert_eq!(
+            tree_lines(&tree, ""),
+            vec!["└─ 📄 \\u{1b}]52;c;U1lOVEhFVElD\\u{7}\\nfile.txt"]
+        );
+    }
+
+    #[test]
+    fn regression_table_escapes_controls_before_padding_or_truncation() {
+        assert_eq!(pad_cell("a\nb", 5), "a\\nb ");
+        assert_eq!(pad_cell("\u{1b}[2J", 30), "\\u{1b}[2J                     ");
+        assert_eq!(pad_cell("中文abc", 4), "中文ab");
     }
 
     #[test]

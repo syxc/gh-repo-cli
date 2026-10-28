@@ -77,6 +77,8 @@ fn write_string(text: &str, out: &mut String) {
         match character {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
+            '\u{0008}' => out.push_str("\\b"),
+            '\u{000c}' => out.push_str("\\f"),
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
@@ -112,6 +114,13 @@ mod tests {
     fn escapes_control_characters_like_go() {
         let value = Json::Str("a\u{7}b\n".to_owned());
         assert_eq!(value.marshal_indent(), "\"a\\u0007b\\n\"");
+    }
+
+    #[test]
+    fn regression_escapes_backspace_and_form_feed_like_go() {
+        let value = Json::Str("\u{0008}\u{000c}".to_owned());
+
+        assert_eq!(value.marshal_indent(), "\"\\b\\f\"");
     }
 
     #[test]

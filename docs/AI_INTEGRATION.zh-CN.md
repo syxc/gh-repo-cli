@@ -2,7 +2,7 @@
 
 > 让助手自己决定何时使用 ghr，而不是手动调用。
 
-AI 编码助手通常通过 MCP 服务器或内置 API 工具分析 GitHub 仓库，这类服务一般有配额限制。ghr 对公开仓库免费且无限制，适合作为默认的仓库分析工具。同样的配置思路适用于 Claude Code、Codex、Pi 等主流编码 Agent，下文以 Claude Code 为例。
+ghr 用 Git 克隆公开仓库并在本地分析，不使用 GitHub API 或 MCP 配额，克隆和刷新仍需要网络。下文以 Claude Code 为例，同样的规则也可加入 Codex 或 Pi 的指令文件。
 
 ## 配置
 
@@ -21,7 +21,7 @@ Claude Code 编辑 `~/.claude/CLAUDE.md`；Codex 等其他 Agent 读取各自的
 ```
 # GitHub 仓库分析优先级
 
-ghr 免费无限制；公开仓库优先使用 ghr 而非 MCP 工具。
+读取公开仓库文件时优先使用 ghr；它通过 Git 工作，不使用 GitHub API 或 MCP 配额。
 
 触发规则（用户输入匹配 → 使用 ghr）:
 - github.com/ 链接
@@ -64,7 +64,7 @@ Claude Code: [自动执行 ghr analyze vercel/next.js，然后回答]
 → ghr read microsoft/TypeScript src/compiler/tsc.ts
 ```
 
-利用缓存：同一仓库的第一条命令触发克隆，之后都读 `~/.ghr-cache`；需要最新提交时加 `--no-cache`。需要助手引用结构化结果时用 `-o file.json`，例如 `@react-analysis.json 解释这个代码库的架构`。
+第一条命令克隆仓库，后续命令从当前默认分支刷新缓存；`--no-cache` 强制重新克隆。共用缓存的命令串行执行，避免并行调用同一缓存。需要结构化结果时用 `-o file.json`，例如 `@react-analysis.json 解释这个代码库的架构`。
 
 ## 故障排查
 

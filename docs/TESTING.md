@@ -42,6 +42,7 @@ with `#[expect(...)]` plus a comment explaining why.
 | `src/cli.rs` | Argument parsing, help text, error strings, exit codes |
 | `src/config.rs` | Proxy resolution order, system-proxy parsing |
 | `src/git.rs` | Repo format parsing, clone URLs, proxy git args |
+| `src/cache.rs` | Cache validation, locking and retention |
 | `src/fsutil.rs` | Directory traversal, file IO, output saving, size formatting |
 | `src/search.rs` | Regex search, extension filter, language detection |
 | `src/output.rs` | Table and tree rendering |
@@ -58,11 +59,11 @@ with `#[expect(...)]` plus a comment explaining why.
 
 ## CI
 
-GitHub Actions runs on every push and pull request:
+CI and Code Quality run on pushes to `master`, `develop` and `refactor/**`, and pull requests to `master` or `develop`:
 
-- **CI**: formatting, clippy (`-D warnings`), tests, cross-platform builds
-- **Code Quality**: weekly and on push; also checks for TODO comments and oversized files
-- **Release**: on version tags, runs tests and clippy before building archives
+- CI checks formatting and clippy on Linux, runs tests on Linux, macOS and Windows, checks Rust 1.85 with `--locked`, and builds five targets.
+- Code Quality also runs weekly and checks for TODO comments and oversized files.
+- Release runs on `v*` tags. It checks the tag, manifest version and release notes, then runs tests and clippy before building archives.
 
 ## Troubleshooting
 
@@ -70,5 +71,5 @@ GitHub Actions runs on every push and pull request:
   previous run left stale state, delete `ghr-*` directories in your temp folder.
 - **Clippy failures**: run `cargo clippy --all-targets --all-features` locally and
   fix, or justify an `#[expect(...)]` with a comment.
-- **Lockfile issues**: run `cargo update --locked` errors mean `Cargo.lock` is out
-  of date; commit the refreshed `Cargo.lock`.
+- Lockfile changes: after an intentional manifest change, run `cargo check` to
+  refresh `Cargo.lock`, review the diff, then rerun `cargo check --locked`.

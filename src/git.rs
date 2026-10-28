@@ -20,6 +20,8 @@ pub enum GitError {
     CreateCacheDir(String),
     #[error("failed to clone {0}: {1}")]
     CloneFailed(String, String),
+    #[error("{0}")]
+    Cache(String),
 }
 
 pub struct RepoInfo {
@@ -49,16 +51,33 @@ pub fn parse_repo(repo: &str) -> Result<(&str, &str), GitError> {
 /// `..` would otherwise resolve `clean`/`clone` targets outside (or onto the
 /// root of) the cache tree.
 fn is_segment(segment: &str) -> bool {
-    !segment.is_empty() && segment != "." && segment != ".."
+    if segment.is_empty()
+        || segment == "."
+        || segment == ".."
+        || segment.ends_with('.')
+        || !segment
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
+    {
+        return false;
+    }
+    let stem = segment
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    !matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        && !(stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && matches!(stem.as_bytes()[3], b'1'..=b'9'))
 }
 
 pub fn build_clone_url(owner: &str, name: &str) -> String {
     format!("https://github.com/{owner}/{name}.git")
 }
 
-/// Clones `repo` into the cache, or refreshes an existing clone with
-/// `fetch` + `reset`. A failed refresh falls back to a fresh clone, and
-/// `no_cache` skips the cache entirely.
+/// Clones or refreshes `repo` while the caller holds the cache lock.
+/// Failed refreshes preserve the existing cache; `no_cache` forces a clone.
 pub fn clone_repo(
     repo: &str,
     cache_dir: &Path,
@@ -66,13 +85,19 @@ pub fn clone_repo(
     no_cache: bool,
 ) -> Result<PathBuf, GitError> {
     let (owner, name) = parse_repo(repo)?;
-    let repo_path = cache_dir.join(owner).join(name);
+    let repo_path = crate::cache::repo_path(cache_dir, repo).map_err(GitError::Cache)?;
 
     if repo_path.exists() {
-        if no_cache || !fetch_latest(&repo_path, proxy) {
-            let _ = std::fs::remove_dir_all(&repo_path);
-        } else {
+        if no_cache {
+            std::fs::remove_dir_all(&repo_path).map_err(|err| {
+                GitError::Cache(crate::fsutil::describe_io(&err, "remove", &repo_path))
+            })?;
+        } else if fetch_latest(&repo_path, proxy) {
             return Ok(repo_path);
+        } else {
+            return Err(GitError::Cache(format!(
+                "failed to refresh {repo}; existing cache was preserved"
+            )));
         }
     }
 
@@ -81,7 +106,7 @@ pub fn clone_repo(
         GitError::CreateCacheDir(crate::fsutil::describe_io(&err, "mkdir", parent))
     })?;
 
-    let mut command = Command::new("git");
+    let mut command = git_command();
     command
         .args(proxy_args(proxy))
         // --single-branch is implied by --depth 1; spelled out so the cache is
@@ -107,26 +132,24 @@ pub fn clone_repo(
     }
 }
 
-/// Fetches origin and hard-resets to `origin/HEAD` within a shared 30s
-/// deadline; git output is discarded like the Go build's `exec.Command`.
-/// A final reflog-expiring gc prunes superseded tips, so long-lived caches
-/// do not accumulate unreachable objects.
+/// Refreshes the remote's current default branch at depth one within 30s.
+/// Git's automatic maintenance retains its normal object expiry policy.
 fn fetch_latest(repo_path: &Path, proxy: &str) -> bool {
     let deadline = Instant::now() + UPDATE_TIMEOUT;
 
-    let mut fetch = Command::new("git");
+    let mut fetch = git_command();
     fetch
         .args(proxy_args(proxy))
         .arg("-C")
         .arg(repo_path)
-        .args(["fetch", "origin"]);
+        .args(["fetch", "--depth", "1", "--no-tags", "origin", "HEAD"]);
 
-    let mut reset = Command::new("git");
+    let mut reset = git_command();
     reset
         .args(proxy_args(proxy))
         .arg("-C")
         .arg(repo_path)
-        .args(["reset", "--hard", "origin/HEAD"]);
+        .args(["reset", "--hard", "FETCH_HEAD"]);
 
     if !(is_success(&run_with_deadline(fetch, deadline, StreamMode::Discard))
         && is_success(&run_with_deadline(reset, deadline, StreamMode::Discard)))
@@ -134,18 +157,10 @@ fn fetch_latest(repo_path: &Path, proxy: &str) -> bool {
         return false;
     }
 
-    // Non-fatal: the cache stays usable if gc cannot run (e.g. a concurrent
-    // process holds a lock).
-    let mut gc = Command::new("git");
-    gc.args([
-        "-c",
-        "gc.reflogExpire=now",
-        "-c",
-        "gc.reflogExpireUnreachable=now",
-    ])
-    .arg("-C")
-    .arg(repo_path)
-    .args(["gc", "--prune=now", "--quiet"]);
+    let mut gc = git_command();
+    gc.args(["-c", "gc.autoDetach=false", "-C"])
+        .arg(repo_path)
+        .args(["gc", "--auto", "--quiet"]);
     let _ = run_with_deadline(gc, deadline, StreamMode::Discard);
 
     true
@@ -153,7 +168,7 @@ fn fetch_latest(repo_path: &Path, proxy: &str) -> bool {
 
 /// Reads repository metadata; `None` when the path is not a usable git repo.
 pub fn get_repo_info(repo_path: &Path) -> Option<RepoInfo> {
-    let remote = git_output(repo_path, &["config", "--get", "remote.origin.url"])?;
+    let remote = origin_url(repo_path)?;
     let commit = git_output(repo_path, &["rev-parse", "HEAD"])?;
     let date = git_output(repo_path, &["log", "-1", "--format=%ci"])?;
 
@@ -164,8 +179,56 @@ pub fn get_repo_info(repo_path: &Path) -> Option<RepoInfo> {
     })
 }
 
+pub fn origin_url(repo_path: &Path) -> Option<String> {
+    git_output(
+        repo_path,
+        &["config", "--local", "--get", "remote.origin.url"],
+    )
+}
+
+pub fn has_local_worktree(repo_path: &Path) -> bool {
+    let Ok(root) = repo_path.canonicalize() else {
+        return false;
+    };
+    let Some(worktree) = git_output(repo_path, &["rev-parse", "--show-toplevel"]) else {
+        return false;
+    };
+    let Some(git_dir) = git_output(repo_path, &["rev-parse", "--absolute-git-dir"]) else {
+        return false;
+    };
+    let Some(common_dir) = git_output(repo_path, &["rev-parse", "--git-common-dir"]) else {
+        return false;
+    };
+    Path::new(&worktree)
+        .canonicalize()
+        .is_ok_and(|path| path == root)
+        && Path::new(&git_dir)
+            .canonicalize()
+            .is_ok_and(|path| path == root.join(".git"))
+        && repo_path
+            .join(common_dir)
+            .canonicalize()
+            .is_ok_and(|path| path == root.join(".git"))
+}
+
+fn git_command() -> Command {
+    let mut command = Command::new("git");
+    for variable in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ] {
+        command.env_remove(variable);
+    }
+    command.args(["-c", "maintenance.auto=false"]);
+    command
+}
+
 fn git_output(repo_path: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git")
+    let output = git_command()
         .arg("-C")
         .arg(repo_path)
         .args(args)
@@ -205,6 +268,10 @@ enum Outcome {
 }
 
 fn run_with_deadline(mut command: Command, deadline: Instant, streams: StreamMode) -> Outcome {
+    if Instant::now() >= deadline {
+        return Outcome::TimedOut;
+    }
+    command.env("GIT_TERMINAL_PROMPT", "0");
     match streams {
         StreamMode::Inherit => {
             command
@@ -235,7 +302,11 @@ fn run_with_deadline(mut command: Command, deadline: Instant, streams: StreamMod
                 return Outcome::TimedOut;
             }
             Ok(None) => std::thread::sleep(POLL_INTERVAL),
-            Err(err) => return Outcome::SpawnError(err),
+            Err(err) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Outcome::SpawnError(err);
+            }
         }
     }
 }
@@ -290,6 +361,21 @@ mod tests {
                 err.to_string(),
                 format!("invalid repo format: {repo}. Expected: owner/repo")
             );
+        }
+    }
+
+    #[test]
+    fn parse_repo_rejects_windows_paths_and_url_delimiters() {
+        for repo in [
+            r"owner/..\outside",
+            "owner/C:outside",
+            "owner/repo?ref=main",
+            "owner/repo#fragment",
+            "owner/repo ",
+            "owner/CON",
+            "owner/nul.txt",
+        ] {
+            assert!(parse_repo(repo).is_err(), "{repo} should not parse");
         }
     }
 

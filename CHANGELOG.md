@@ -5,21 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.3] - 2026-10-28
 
 ### Added
-- `analyze --sections <list>` reports only the requested sections (`info`, `languages`, `file-types`, `structure`); the JSON output contains only those keys
-- SOCKS proxies configured at the OS level are now detected (macOS `scutil`, GNOME `gsettings`, Windows registry) and passed to git as `socks5h://`; HTTP(S) proxies still win
-- `analyze --depth <n>` controls the tree depth of the structure section (default 2, unchanged)
-- `GH_CACHE_DIR` overrides the cache location (default `~/.ghr-cache`)
-
-### Changed
-- `search` skips binary files (NUL sniff on the first 8 KiB) instead of matching mojibake lines
+- `analyze --depth` controls the structure tree; `--sections` selects report sections. JSON always keeps `repo` and names the file-types section `fileTypes`.
+- System SOCKS proxy detection on macOS, GNOME and Windows, using `socks5h://`; HTTP(S) proxies take priority.
+- `GH_CACHE_DIR` selects an empty directory or a recognized existing cache.
 
 ### Fixed
-- `analyze` statistics are always computed at depth 2 regardless of `--depth`; a shallow `--depth` could previously undercount languages and file types
-- Repositories with dot path segments (`a/..`) are rejected; they could previously resolve cache operations to the cache root or outside it
-- IO error wording on non-unix platforms now uses common error kinds instead of "unknown error"
+- Cache cleanup preserves unrelated data and rejects symlink paths and redirected Git worktrees. A process lock protects repository access from concurrent updates and cleanup.
+- Refreshes keep depth 1 and follow the current default branch. Failed refreshes preserve the cache. Git automatic maintenance replaces forced full pruning on every call.
+- File reading, README lookup, listing and search reject links outside the repository. Terminal control characters in names and content are escaped.
+- Non-ASCII depth values return errors instead of panicking; help/version flags honor explicit boolean values. Invalid UTF-8 arguments are rejected without changing their bytes.
+- System proxy parsing validates ports, formats IPv6 addresses and ignores nested macOS proxy scopes.
+- `clean --old -o` also clears the output directory; automatic cleanup reports deletion failures.
+- JSON uses Go-compatible backspace/form-feed escapes; common IO errors use platform-independent wording.
+
+### Changed
+- `search` skips files with NUL bytes in the first 8 KiB. `analyze` statistics stay at depth 2 and retain the top 10 entries, independently of the displayed tree depth.
+- CI adds native tests on Linux, macOS and Windows plus a Rust 1.85 check. Releases reject mismatched tags and missing notes; temporary notes stay outside the checkout.
+- Documentation states cache growth, refresh behavior, JSON fields and search-output limits.
 
 ## [0.3.2] - 2026-10-28
 
@@ -34,13 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - LRU-style cache retention: `ghr clean --old 30d` removes cached repositories unused for 30 days or more; bare `ghr clean` shows cache statistics (repos, size, oldest entry) as a reminder
 - Automatic eviction via `GH_CACHE_MAX_AGE` (e.g. `30d`): stale repositories are evicted on every invocation before the cache is touched
-- Clones fetch only the default branch tip (`--depth 1 --single-branch`, explicit), and each refresh expires reflogs and prunes superseded objects so cached repositories stop growing over time
+- Clones use `--depth 1 --single-branch`; refreshes expire reflogs and prune superseded objects. This did not prevent reachable history from growing; 0.3.3 corrects the refresh depth and maintenance policy.
 
 ## [0.3.0] - 2026-10-28
 
 ### Changed
-- **Complete rewrite in Rust** - same CLI surface, commands, flags, output formats and exit codes as the Go implementation
-- Single dependency set (`regex`, `thiserror`); output files stay byte-compatible with the Go build (HTML-escaped JSON, `null` vs `[]` semantics)
+- Rewrite in Rust retaining the seven repository commands, report formats and exit-code conventions. The completion command was removed as noted below; Rust regex syntax and Unicode classes differ from Go regexp.
+- Dependencies were `regex` and `thiserror`; JSON retains HTML escaping, field order and `null` vs `[]` semantics.
 - Count tables (`analyze`) break ties deterministically by key; the Go build's tie order was random
 
 ### Added

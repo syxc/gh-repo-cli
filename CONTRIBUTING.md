@@ -38,12 +38,13 @@ git checkout -b feature/your-feature-name   # or fix/your-bug-fix
 ### 4. Validate
 
 ```bash
-cargo fmt --all
+cargo fmt --all --check
 cargo clippy --all-targets --all-features --locked -- -D warnings
-cargo test
+cargo test --locked
+cargo +1.85.0 check --all-targets --all-features --locked
 ```
 
-CI runs exactly these checks plus cross-platform builds.
+Install Rust 1.85.0 with rustup for the last check. CI runs tests on Linux, macOS and Windows, checks the MSRV, and builds five targets; formatting and clippy run on Linux.
 
 ### 5. Commit and Push
 
@@ -67,6 +68,7 @@ gh-repo-cli/
 │   ├── cli.rs         # Argument parsing, help/usage text, exit codes
 │   ├── commands.rs    # The seven subcommand implementations
 │   ├── config.rs      # Cache/output paths and proxy resolution
+│   ├── cache.rs       # Cache validation, locking and retention
 │   ├── git.rs         # Repo parsing, cached clones, repo metadata
 │   ├── fsutil.rs      # Directory trees, file IO, size formatting
 │   ├── search.rs      # Regex search and language detection

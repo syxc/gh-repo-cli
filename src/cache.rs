@@ -2,8 +2,162 @@
 //! each was last used, parse age specifications like `30d`, and format ages
 //! for display.
 
+use std::fs::{File, OpenOptions};
+use std::io;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
+
+use fs2::FileExt;
+
+const ROOT_MARKER: &str = ".ghr-cache-root";
+const ROOT_SIGNATURE: &str = "ghr cache v1\n";
+const LOCK_NAME: &str = ".ghr.lock";
+
+/// The lock file stays in place so waiting processes always lock the same inode.
+pub struct CacheLock {
+    file: File,
+}
+
+impl Drop for CacheLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.file);
+    }
+}
+
+impl CacheLock {
+    pub fn acquire(cache_dir: &Path) -> io::Result<Self> {
+        validate_root(cache_dir)?;
+        std::fs::create_dir_all(cache_dir)?;
+        let lock_path = cache_dir.join(LOCK_NAME);
+        if std::fs::symlink_metadata(&lock_path).is_ok_and(|meta| !meta.is_file()) {
+            return Err(io::Error::other("cache lock is not a regular file"));
+        }
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(lock_path)?;
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            match file.try_lock_exclusive() {
+                Ok(()) => break,
+                Err(err) if err.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {
+                    if Instant::now() >= deadline {
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "cache is in use by another ghr process",
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+                Err(err) => return Err(err),
+            }
+        }
+        validate_root(cache_dir)?;
+        let marker = cache_dir.join(ROOT_MARKER);
+        if !marker.exists() {
+            std::fs::write(marker, ROOT_SIGNATURE)?;
+        }
+
+        Ok(Self { file })
+    }
+}
+
+fn validate_root(cache_dir: &Path) -> io::Result<()> {
+    if !cache_dir.try_exists()? {
+        return Ok(());
+    }
+    let marker = cache_dir.join(ROOT_MARKER);
+    if let Ok(meta) = std::fs::symlink_metadata(&marker) {
+        if meta.is_file() && std::fs::read_to_string(&marker)? == ROOT_SIGNATURE {
+            return Ok(());
+        }
+        return Err(io::Error::other("invalid ghr cache marker"));
+    }
+
+    let contents = std::fs::read_dir(cache_dir)?.collect::<io::Result<Vec<_>>>()?;
+    let unmarked: Vec<_> = contents
+        .iter()
+        .filter(|entry| entry.file_name() != LOCK_NAME)
+        .collect();
+    if unmarked.is_empty() {
+        return Ok(());
+    }
+    // A pre-marker cache must contain only recognized repository directories.
+    let legacy = unmarked.iter().all(|owner| {
+        owner.file_type().is_ok_and(|kind| kind.is_dir())
+            && std::fs::read_dir(owner.path()).is_ok_and(|repos| {
+                repos
+                    .into_iter()
+                    .all(|repo| repo.is_ok_and(|repo| is_cached_repo(&repo.path())))
+            })
+    });
+    if legacy {
+        return Ok(());
+    }
+
+    Err(io::Error::other(
+        "cache directory contains unrecognized data; set GH_CACHE_DIR to an empty directory",
+    ))
+}
+
+pub fn is_cached_repo(path: &Path) -> bool {
+    if !is_directory(path) || !is_directory(&path.join(".git")) {
+        return false;
+    }
+    let Some(owner) = path
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str())
+    else {
+        return false;
+    };
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let repo = format!("{owner}/{name}");
+    if crate::git::parse_repo(&repo).is_err() {
+        return false;
+    }
+    let config = path.join(".git").join("config");
+    if !std::fs::symlink_metadata(&config).is_ok_and(|meta| meta.is_file()) {
+        return false;
+    }
+    crate::git::origin_url(path).is_some_and(|url| url == crate::git::build_clone_url(owner, name))
+        && crate::git::has_local_worktree(path)
+}
+
+pub fn is_directory(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir())
+}
+
+/// Validates both repository path components without following symlinks.
+pub fn repo_path(cache_dir: &Path, repo: &str) -> Result<PathBuf, String> {
+    let (owner, name) = crate::git::parse_repo(repo).map_err(|err| err.to_string())?;
+    let owner_path = cache_dir.join(owner);
+    let path = owner_path.join(name);
+    for directory in [&owner_path, &path] {
+        match std::fs::symlink_metadata(directory) {
+            Ok(meta) if !meta.is_dir() => {
+                return Err(format!(
+                    "refusing cache path that is not a directory: {}",
+                    directory.display()
+                ));
+            }
+            Err(err) if err.kind() != io::ErrorKind::NotFound => return Err(err.to_string()),
+            _ => {}
+        }
+    }
+    if path.exists() && !is_cached_repo(&path) {
+        return Err(format!(
+            "refusing unrecognized cached repository: {}",
+            path.display()
+        ));
+    }
+
+    Ok(path)
+}
 
 #[derive(Debug)]
 pub struct CacheEntry {
@@ -59,11 +213,10 @@ impl CacheEntry {
 /// ghr's update path runs `git fetch` on every use, which rewrites
 /// `.git/FETCH_HEAD`; its mtime is the last-use marker. Directory mtime is
 /// the fallback for entries without one.
-fn last_used(repo_path: &Path) -> SystemTime {
+fn last_used(repo_path: &Path) -> io::Result<SystemTime> {
     std::fs::metadata(repo_path.join(".git").join("FETCH_HEAD"))
         .or_else(|_| std::fs::metadata(repo_path))
         .and_then(|meta| meta.modified())
-        .unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
 /// Lists cached repositories as `owner/repo`, oldest first.
@@ -74,22 +227,28 @@ pub fn scan(cache_dir: &Path) -> Vec<CacheEntry> {
 
     let mut entries = Vec::new();
     for owner in owners.flatten() {
+        if !owner.file_type().is_ok_and(|kind| kind.is_dir()) {
+            continue;
+        }
         let Ok(repos) = std::fs::read_dir(owner.path()) else {
             continue;
         };
         for repo in repos.flatten() {
             let path = repo.path();
-            if !path.is_dir() {
+            if !is_cached_repo(&path) {
                 continue;
             }
+            let Ok(last_used) = last_used(&path) else {
+                continue;
+            };
             entries.push(CacheEntry {
                 name: format!(
                     "{}/{}",
                     owner.file_name().to_string_lossy(),
                     repo.file_name().to_string_lossy()
                 ),
-                path: path.clone(),
-                last_used: last_used(&path),
+                path,
+                last_used,
             });
         }
     }
@@ -135,7 +294,7 @@ mod tests {
                 .to_string_lossy()
                 .into_owned(),
             path: repo_path.to_path_buf(),
-            last_used: last_used(repo_path),
+            last_used: last_used(repo_path).unwrap(),
         }
     }
 
@@ -144,6 +303,69 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("owner")).unwrap();
         dir
+    }
+
+    fn init_repo(path: &Path) {
+        assert!(
+            std::process::Command::new("git")
+                .args(["init", "-q"])
+                .arg(path)
+                .status()
+                .unwrap()
+                .success()
+        );
+        let owner = path
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        let name = path.file_name().unwrap().to_str().unwrap();
+        assert!(
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(path)
+                .args([
+                    "config",
+                    "remote.origin.url",
+                    &crate::git::build_clone_url(owner, name)
+                ])
+                .status()
+                .unwrap()
+                .success()
+        );
+    }
+
+    #[test]
+    fn cache_root_rejects_existing_unrelated_data() {
+        let dir = temp_cache("unsafe-root");
+        std::fs::write(dir.join("personal.txt"), "keep").unwrap();
+        assert!(CacheLock::acquire(&dir).is_err());
+        assert_eq!(
+            std::fs::read_to_string(dir.join("personal.txt")).unwrap(),
+            "keep"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn cache_lock_is_exclusive_and_released_on_drop() {
+        let dir = temp_cache("locking");
+        let first = CacheLock::acquire(&dir).unwrap();
+        let other = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(dir.join(LOCK_NAME))
+            .unwrap();
+        assert_eq!(
+            other.try_lock_exclusive().unwrap_err().raw_os_error(),
+            fs2::lock_contended_error().raw_os_error()
+        );
+        drop(first);
+        other.try_lock_exclusive().unwrap();
+        drop(other);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
@@ -179,8 +401,8 @@ mod tests {
         let dir = temp_cache("scan");
         let old_repo = dir.join("owner").join("old");
         let new_repo = dir.join("owner").join("new");
-        std::fs::create_dir_all(old_repo.join(".git")).unwrap();
-        std::fs::create_dir_all(new_repo.join(".git")).unwrap();
+        init_repo(&old_repo);
+        init_repo(&new_repo);
         std::fs::write(old_repo.join(".git").join("FETCH_HEAD"), "x").unwrap();
         std::fs::write(new_repo.join(".git").join("FETCH_HEAD"), "x").unwrap();
         entry_with_mtime(&old_repo, Duration::from_secs(10 * 86400));
@@ -205,8 +427,8 @@ mod tests {
         let dir = temp_cache("stale");
         let old_repo = dir.join("owner").join("old");
         let fresh_repo = dir.join("owner").join("fresh");
-        std::fs::create_dir_all(old_repo.join(".git")).unwrap();
-        std::fs::create_dir_all(fresh_repo.join(".git")).unwrap();
+        init_repo(&old_repo);
+        init_repo(&fresh_repo);
         std::fs::write(old_repo.join(".git").join("FETCH_HEAD"), "x").unwrap();
         std::fs::write(fresh_repo.join(".git").join("FETCH_HEAD"), "x").unwrap();
         entry_with_mtime(&old_repo, Duration::from_secs(40 * 86400));
@@ -220,6 +442,33 @@ mod tests {
         assert!(excluded.is_empty());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn scan_preserves_unrelated_directories() {
+        let dir = temp_cache("unrelated");
+        std::fs::create_dir_all(dir.join("owner").join("documents")).unwrap();
+
+        assert!(scan(&dir).is_empty());
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_does_not_follow_owner_or_repository_symlinks() {
+        let dir = temp_cache("symlinks");
+        let outside = temp_cache("outside");
+        let repo = outside.join("owner").join("repo");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        std::fs::write(repo.join(".git").join("FETCH_HEAD"), "x").unwrap();
+        std::os::unix::fs::symlink(outside.join("owner"), dir.join("alias")).unwrap();
+        std::os::unix::fs::symlink(&repo, dir.join("owner").join("alias")).unwrap();
+
+        assert!(scan(&dir).is_empty());
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&outside).unwrap();
     }
 
     #[test]
