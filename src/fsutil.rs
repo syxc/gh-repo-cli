@@ -93,34 +93,55 @@ pub fn read_file_content(path: &Path) -> io::Result<String> {
     std::fs::read(path).map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// Counts files per extension and language over a directory tree.
-pub fn count_file_types(
-    items: &[FileItem],
-    file_types: &mut HashMap<String, i64>,
-    languages: &mut HashMap<String, i64>,
-) {
-    for item in items {
-        match item.kind {
-            Kind::File => {
-                let extension = match item.name.rfind('.') {
-                    // Matches `filepath.Ext`: everything from the last dot,
-                    // including dotfiles where the whole name is the extension.
-                    Some(dot) => item.name[dot..].to_lowercase(),
-                    None => "(no extension)".to_owned(),
-                };
-                *file_types.entry(extension).or_insert(0) += 1;
+/// Files-per-extension and files-per-language counts for a directory.
+#[derive(Debug, Default)]
+pub struct FileStats {
+    pub file_types: HashMap<String, i64>,
+    pub languages: HashMap<String, i64>,
+}
 
-                if let Some(language) = detect_language(&item.name) {
-                    *languages.entry(language.to_owned()).or_insert(0) += 1;
-                }
-            }
-            Kind::Directory => {
-                if let Some(children) = &item.children {
-                    count_file_types(children, file_types, languages);
-                }
-            }
+/// Counts files per extension and language, `max_depth` levels deep.
+///
+/// This walks the tree independently of any display tree, so statistics stay
+/// stable when the structure depth changes. Errors below the root are
+/// skipped, mirroring the traversal's tolerance for unreadable subdirectories.
+pub fn count_file_stats(dir: &Path, max_depth: i64) -> io::Result<FileStats> {
+    let mut stats = FileStats::default();
+    count_dir(dir, max_depth, &mut stats)?;
+
+    Ok(stats)
+}
+
+fn count_dir(dir: &Path, remaining_depth: i64, stats: &mut FileStats) -> io::Result<()> {
+    if remaining_depth <= 0 {
+        return Ok(());
+    }
+
+    for entry in std::fs::read_dir(dir)?.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name == ".git" || name == "node_modules" {
+            continue;
+        }
+
+        if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
+            let _ = count_dir(&entry.path(), remaining_depth - 1, stats);
+            continue;
+        }
+
+        // Matches `filepath.Ext`: everything from the last dot, including
+        // dotfiles where the whole name is the extension.
+        let extension = match name.rfind('.') {
+            Some(dot) => name[dot..].to_lowercase(),
+            None => "(no extension)".to_owned(),
+        };
+        *stats.file_types.entry(extension).or_insert(0) += 1;
+
+        if let Some(language) = detect_language(&name) {
+            *stats.languages.entry(language.to_owned()).or_insert(0) += 1;
         }
     }
+
+    Ok(())
 }
 
 /// Writes a JSON payload, creating parent directories as needed.
@@ -342,50 +363,44 @@ mod tests {
     }
 
     #[test]
-    fn count_file_types_buckets_extensions_and_languages() {
-        let tree = vec![
-            FileItem {
-                name: "main.go".to_owned(),
-                path: "main.go".to_owned(),
-                kind: Kind::File,
-                children: None,
-            },
-            FileItem {
-                name: "README.md".to_owned(),
-                path: "README.md".to_owned(),
-                kind: Kind::File,
-                children: None,
-            },
-            FileItem {
-                name: "Makefile".to_owned(),
-                path: "Makefile".to_owned(),
-                kind: Kind::File,
-                children: None,
-            },
-            FileItem {
-                name: "src".to_owned(),
-                path: "src".to_owned(),
-                kind: Kind::Directory,
-                children: Some(vec![FileItem {
-                    name: "app.TS".to_owned(),
-                    path: "src/app.TS".to_owned(),
-                    kind: Kind::File,
-                    children: None,
-                }]),
-            },
-        ];
+    fn count_file_stats_buckets_extensions_and_languages() {
+        let dir = temp_dir("stats");
+        std::fs::write(dir.join("main.go"), "package main").unwrap();
+        std::fs::write(dir.join("README.md"), "# hi").unwrap();
+        std::fs::write(dir.join("Makefile"), "all:").unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src").join("app.TS"), "x").unwrap();
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        std::fs::write(dir.join(".git").join("ignored.go"), "x").unwrap();
 
-        let mut file_types = HashMap::new();
-        let mut languages = HashMap::new();
-        count_file_types(&tree, &mut file_types, &mut languages);
+        let stats = count_file_stats(&dir, 2).unwrap();
 
-        assert_eq!(file_types.get(".go"), Some(&1));
-        assert_eq!(file_types.get(".md"), Some(&1));
-        assert_eq!(file_types.get(".ts"), Some(&1));
-        assert_eq!(file_types.get("(no extension)"), Some(&1));
-        assert_eq!(languages.get("Go"), Some(&1));
-        assert_eq!(languages.get("Markdown"), Some(&1));
-        assert_eq!(languages.get("TypeScript"), Some(&1));
+        assert_eq!(stats.file_types.get(".go"), Some(&1));
+        assert_eq!(stats.file_types.get(".md"), Some(&1));
+        assert_eq!(stats.file_types.get(".ts"), Some(&1));
+        assert_eq!(stats.file_types.get("(no extension)"), Some(&1));
+        assert_eq!(stats.languages.get("Go"), Some(&1));
+        assert_eq!(stats.languages.get("Markdown"), Some(&1));
+        assert_eq!(stats.languages.get("TypeScript"), Some(&1));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn count_file_stats_respects_max_depth() {
+        let dir = temp_dir("stats-depth");
+        std::fs::create_dir_all(dir.join("one").join("two")).unwrap();
+        std::fs::write(dir.join("root.txt"), "x").unwrap();
+        std::fs::write(dir.join("one").join("mid.txt"), "x").unwrap();
+        std::fs::write(dir.join("one").join("two").join("deep.txt"), "x").unwrap();
+
+        let shallow = count_file_stats(&dir, 1).unwrap();
+        let deep = count_file_stats(&dir, 3).unwrap();
+
+        assert_eq!(shallow.file_types.get(".txt"), Some(&1));
+        assert_eq!(deep.file_types.get(".txt"), Some(&3));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

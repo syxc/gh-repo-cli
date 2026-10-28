@@ -66,9 +66,10 @@ fn resolve_proxy(lookup: &dyn Fn(&str) -> Option<String>) -> String {
         .unwrap_or_else(&detect_system_proxy)
 }
 
-/// Detects the HTTP(S) proxy configured at the OS level: `scutil --proxy` on
-/// macOS, GNOME `gsettings` on Linux, the registry on Windows. Returns an
-/// empty string when no system proxy is set or detection is unavailable.
+/// Detects the proxy configured at the OS level: `scutil --proxy` on macOS,
+/// GNOME `gsettings` on Linux, the registry on Windows. HTTP(S) proxies win
+/// over SOCKS; returns an empty string when none is set or detection is
+/// unavailable.
 #[cfg(target_os = "macos")]
 fn detect_system_proxy() -> String {
     let Ok(output) = std::process::Command::new("scutil").arg("--proxy").output() else {
@@ -85,9 +86,14 @@ fn detect_system_proxy() -> String {
         ("HTTPEnable", "HTTPProxy", "HTTPPort"),
     ] {
         if dict.is_enabled(enable_key) {
-            if let Some(url) = dict.proxy_url(proxy_key, port_key) {
+            if let Some(url) = dict.proxy_url(proxy_key, port_key, "http") {
                 return url;
             }
+        }
+    }
+    if dict.is_enabled("SOCKSEnable") {
+        if let Some(url) = dict.proxy_url("SOCKSProxy", "SOCKSPort", "socks5h") {
+            return url;
         }
     }
 
@@ -101,11 +107,12 @@ fn detect_system_proxy() -> String {
         return String::new();
     }
 
-    for schema in [
-        "org.gnome.system.proxy.https",
-        "org.gnome.system.proxy.http",
+    for (schema, protocol) in [
+        ("org.gnome.system.proxy.https", "http"),
+        ("org.gnome.system.proxy.http", "http"),
+        ("org.gnome.system.proxy.socks", "socks5h"),
     ] {
-        if let Some(url) = gsettings_proxy_url(schema) {
+        if let Some(url) = gsettings_proxy_url(schema, protocol) {
             return url;
         }
     }
@@ -114,14 +121,14 @@ fn detect_system_proxy() -> String {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn gsettings_proxy_url(schema: &str) -> Option<String> {
+fn gsettings_proxy_url(schema: &str, protocol: &str) -> Option<String> {
     let host = gsettings_value(schema, "host")?;
     let port = gsettings_value(schema, "port")?;
     if host.is_empty() || port.is_empty() {
         return None;
     }
 
-    Some(format!("http://{host}:{port}"))
+    Some(format!("{protocol}://{host}:{port}"))
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -155,19 +162,46 @@ fn detect_system_proxy() -> String {
         return String::new();
     };
 
-    // ProxyServer is either "host:port" or "http=...;https=...;...".
-    let target = server
+    parse_windows_proxy_server(&server).unwrap_or_default()
+}
+
+/// `ProxyServer` is either "host:port" or "http=...;https=...;socks=...".
+/// HTTPS wins over HTTP, which wins over SOCKS.
+#[cfg(any(windows, test))]
+fn parse_windows_proxy_server(server: &str) -> Option<String> {
+    let mut http = None;
+    let mut https = None;
+    let mut socks = None;
+
+    for entry in server
         .split(';')
-        .find_map(|entry| entry.strip_prefix("https="))
-        .unwrap_or(&server);
-    if target.is_empty() {
-        return String::new();
-    }
-    if target.contains("://") {
-        return target.to_owned();
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+    {
+        let Some((scheme, host)) = entry.split_once('=') else {
+            return with_scheme(entry, "http");
+        };
+        match scheme {
+            "https" => https = with_scheme(host, "http"),
+            "http" => http = with_scheme(host, "http"),
+            "socks" => socks = with_scheme(host, "socks5h"),
+            _ => {}
+        }
     }
 
-    format!("http://{target}")
+    https.or(http).or(socks)
+}
+
+#[cfg(any(windows, test))]
+fn with_scheme(target: &str, scheme: &str) -> Option<String> {
+    if target.is_empty() {
+        return None;
+    }
+    if target.contains("://") {
+        return Some(target.to_owned());
+    }
+
+    Some(format!("{scheme}://{target}"))
 }
 
 #[cfg(windows)]
@@ -210,14 +244,14 @@ impl<'a> ScutilDict<'a> {
         self.fields.get(key).is_some_and(|value| *value == "1")
     }
 
-    fn proxy_url(&self, proxy_key: &str, port_key: &str) -> Option<String> {
+    fn proxy_url(&self, proxy_key: &str, port_key: &str, scheme: &str) -> Option<String> {
         let host = self.fields.get(proxy_key)?;
         let port = self.fields.get(port_key)?;
         if host.is_empty() || port.is_empty() {
             return None;
         }
 
-        Some(format!("http://{host}:{port}"))
+        Some(format!("{scheme}://{host}:{port}"))
     }
 }
 
@@ -297,9 +331,51 @@ mod tests {
         assert!(dict.is_enabled("HTTPSEnable"));
         assert!(!dict.is_enabled("HTTPEnable"));
         assert_eq!(
-            dict.proxy_url("HTTPSProxy", "HTTPSPort"),
+            dict.proxy_url("HTTPSProxy", "HTTPSPort", "http"),
             Some("http://127.0.0.1:7890".to_owned())
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn scutil_dict_reports_socks_with_the_socks5h_scheme() {
+        let sample =
+            "<dictionary> {\n  SOCKSEnable : 1\n  SOCKSPort : 1080\n  SOCKSProxy : 127.0.0.1\n}";
+        let dict = ScutilDict::parse(sample);
+
+        assert_eq!(
+            dict.proxy_url("SOCKSProxy", "SOCKSPort", "socks5h"),
+            Some("socks5h://127.0.0.1:1080".to_owned())
+        );
+    }
+
+    #[test]
+    fn windows_proxy_server_prefers_https_then_http_then_socks() {
+        assert_eq!(
+            parse_windows_proxy_server("http=10.0.0.1:8080;https=10.0.0.2:8443"),
+            Some("http://10.0.0.2:8443".to_owned())
+        );
+        assert_eq!(
+            parse_windows_proxy_server("http=10.0.0.1:8080;socks=10.0.0.3:1080"),
+            Some("http://10.0.0.1:8080".to_owned())
+        );
+        assert_eq!(
+            parse_windows_proxy_server("socks=10.0.0.3:1080"),
+            Some("socks5h://10.0.0.3:1080".to_owned())
+        );
+    }
+
+    #[test]
+    fn windows_proxy_server_accepts_plain_host_port() {
+        assert_eq!(
+            parse_windows_proxy_server("10.0.0.1:8080"),
+            Some("http://10.0.0.1:8080".to_owned())
+        );
+        assert_eq!(
+            parse_windows_proxy_server("http://10.0.0.1:8080"),
+            Some("http://10.0.0.1:8080".to_owned())
+        );
+        assert_eq!(parse_windows_proxy_server(""), None);
     }
 
     #[cfg(target_os = "macos")]
@@ -308,6 +384,6 @@ mod tests {
         let sample = "<dictionary> {\n  HTTPSEnable : 0\n  HTTPEnable : 0\n}";
         let dict = ScutilDict::parse(sample);
 
-        assert_eq!(dict.proxy_url("HTTPSProxy", "HTTPSPort"), None);
+        assert_eq!(dict.proxy_url("HTTPSProxy", "HTTPSPort", "http"), None);
     }
 }

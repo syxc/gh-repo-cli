@@ -35,6 +35,7 @@ cargo install --path .
 ```bash
 ghr analyze facebook/react              # 语言、文件类型、结构
 ghr analyze facebook/react --depth 3    # 更深的结构树（默认 2）
+ghr analyze facebook/react --sections languages   # 只输出语言表
 ghr structure vuejs/core --depth 2      # 目录树（深度默认 3）
 ghr search facebook/react useState -e .js
 ghr search facebook/react types --ignore-case
@@ -51,7 +52,7 @@ ghr clean                               # 显示用法与缓存统计
 需要注意的行为：
 
 - `search` 接受正则表达式。表格最多显示 50 条；`-o` 始终保存完整结果。二进制文件（前 8 KiB 含 NUL 字节）会被跳过。
-- `analyze`、`structure`、`search` 支持 `-o <file>` 输出 JSON（自动创建目录）。
+- `analyze`、`structure`、`search` 支持 `-o <file>` 输出 JSON（自动创建目录）；`analyze` 配合 `--sections` 时只写入所选部分。
 - `--no-cache` 重新克隆，而不是更新缓存副本。
 - `read` 输出文件内容；文件不存在时会列出其父目录内容，便于找到正确路径。
 
@@ -63,7 +64,7 @@ ghr clean                               # 显示用法与缓存统计
 2. `HTTPS_PROXY` / `https_proxy`
 3. `HTTP_PROXY` / `http_proxy`
 4. `ALL_PROXY` / `all_proxy`
-5. 系统设置：macOS 读 `scutil --proxy`，Linux 读 GNOME `gsettings`，Windows 读注册表
+5. 系统设置：macOS 读 `scutil --proxy`，Linux 读 GNOME `gsettings`，Windows 读注册表。优先 HTTP(S) 代理；仅配置 SOCKS 时以 `socks5h://`（远程 DNS）使用
 
 ```bash
 GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # 临时覆盖

@@ -96,6 +96,7 @@ enum FlagKind {
     IgnoreCase,
     All,
     Old,
+    Sections,
 }
 
 struct FlagDef {
@@ -137,6 +138,12 @@ const ANALYZE_FLAGS: &[FlagDef] = &[
         short: Some('o'),
         display: "-o, --output",
         kind: FlagKind::OutputStr,
+    },
+    FlagDef {
+        long: "sections",
+        short: None,
+        display: "--sections",
+        kind: FlagKind::Sections,
     },
 ];
 
@@ -222,9 +229,10 @@ const COMMAND_SPECS: &[CommandSpec] = &[
   ghr analyze <repo> [flags]
 
 Flags:
-  -d, --depth int       Tree depth for the structure section (default 2)
-  -h, --help            help for analyze
-  -o, --output string   Save output to file
+  -d, --depth int         Tree depth for the structure section (default 2)
+  -h, --help              help for analyze
+  -o, --output string     Save output to file
+      --sections string   Sections to report: info, languages, file-types, structure
 
 Global Flags:
       --no-cache   Bypass cache and re-clone",
@@ -338,6 +346,7 @@ pub enum Command {
     Analyze {
         repo: String,
         depth: i64,
+        sections: AnalyzeSections,
         output: Option<String>,
     },
     Structure {
@@ -675,8 +684,21 @@ fn parse_subcommand(spec: &'static CommandSpec, args: &[&String], root_no_cache:
         };
     }
 
+    let sections = match flags.sections.as_deref() {
+        Some(raw) => match parse_sections(raw) {
+            Ok(sections) => sections,
+            Err(message) => {
+                return Parsed::Failure {
+                    message,
+                    usage: spec.usage,
+                };
+            }
+        },
+        None => AnalyzeSections::all(),
+    };
+
     Parsed::Command {
-        command: build_command(spec, &positionals, flags),
+        command: build_command(spec, &positionals, flags, sections),
         no_cache,
     }
 }
@@ -708,6 +730,7 @@ struct ParsedFlags {
     all: bool,
     output_dir: bool,
     old: Option<String>,
+    sections: Option<String>,
 }
 
 /// Applies a long flag; returns whether the next argv entry was consumed as
@@ -755,6 +778,11 @@ fn apply_flag(
         FlagKind::Old => {
             let (value, consumed) = flag_value(inline, next, def).map_err(flagged)?;
             flags.old = Some(value);
+            Ok(consumed)
+        }
+        FlagKind::Sections => {
+            let (value, consumed) = flag_value(inline, next, def).map_err(flagged)?;
+            flags.sections = Some(value);
             Ok(consumed)
         }
         FlagKind::Ext => {
@@ -819,7 +847,11 @@ fn apply_short_cluster(
                 }
                 rest = remainder;
             }
-            FlagKind::OutputStr | FlagKind::Ext | FlagKind::Old | FlagKind::Depth => {
+            FlagKind::OutputStr
+            | FlagKind::Ext
+            | FlagKind::Old
+            | FlagKind::Sections
+            | FlagKind::Depth => {
                 let (raw, consumed_next) = if remainder.is_empty() {
                     let Some(value) = next else {
                         return Err(flagged(format!(
@@ -849,6 +881,8 @@ fn apply_short_cluster(
                     flags.ext = Some(raw);
                 } else if def.kind == FlagKind::Old {
                     flags.old = Some(raw);
+                } else if def.kind == FlagKind::Sections {
+                    flags.sections = Some(raw);
                 } else {
                     flags.output = Some(raw);
                 }
@@ -920,10 +954,76 @@ fn validate_args(spec: &CommandSpec, count: usize) -> Result<(), String> {
     Ok(())
 }
 
+/// Output sections `analyze` reports; all are on unless `--sections` narrows
+/// them. The JSON output contains only the selected sections.
+// Independent output toggles: a four-variant enum per section would not make
+// any combination invalid, so flags are the honest representation here.
+#[expect(clippy::struct_excessive_bools)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnalyzeSections {
+    pub info: bool,
+    pub languages: bool,
+    pub file_types: bool,
+    pub structure: bool,
+}
+
+impl AnalyzeSections {
+    pub fn all() -> Self {
+        Self {
+            info: true,
+            languages: true,
+            file_types: true,
+            structure: true,
+        }
+    }
+
+    /// Whether the statistics sections need the directory tree to be read.
+    pub fn needs_stats(self) -> bool {
+        self.languages || self.file_types
+    }
+}
+
+/// Parses `--sections` values such as `languages,file-types`.
+fn parse_sections(raw: &str) -> Result<AnalyzeSections, String> {
+    let mut sections = AnalyzeSections {
+        info: false,
+        languages: false,
+        file_types: false,
+        structure: false,
+    };
+
+    for name in raw
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        match name {
+            "info" => sections.info = true,
+            "languages" => sections.languages = true,
+            "file-types" => sections.file_types = true,
+            "structure" => sections.structure = true,
+            other => {
+                return Err(format!(
+                    "invalid argument \"{other}\" for \"--sections\" flag: expected info, languages, file-types, structure"
+                ));
+            }
+        }
+    }
+
+    if !(sections.info || sections.languages || sections.file_types || sections.structure) {
+        return Err(format!(
+            "invalid argument \"{raw}\" for \"--sections\" flag: select at least one of info, languages, file-types, structure"
+        ));
+    }
+
+    Ok(sections)
+}
+
 fn build_command(
     spec: &'static CommandSpec,
     positionals: &[String],
     flags: ParsedFlags,
+    sections: AnalyzeSections,
 ) -> Command {
     let repo = || {
         positionals
@@ -942,6 +1042,7 @@ fn build_command(
         "analyze" => Command::Analyze {
             repo: repo(),
             depth: flags.depth.unwrap_or(2),
+            sections,
             output: flags.output,
         },
         "structure" => Command::Structure {
@@ -1295,6 +1396,62 @@ mod tests {
         assert!(
             spec.usage.contains("--depth int"),
             "usage missing --depth: {}",
+            spec.usage
+        );
+    }
+
+    #[test]
+    fn parse_sections_selects_a_subset() {
+        let sections = parse_sections("languages,file-types").unwrap();
+
+        assert!(!sections.info);
+        assert!(sections.languages);
+        assert!(sections.file_types);
+        assert!(!sections.structure);
+        assert!(sections.needs_stats());
+    }
+
+    #[test]
+    fn parse_sections_rejects_unknown_names_and_empty_lists() {
+        let unknown = parse_sections("languages,bogus").unwrap_err();
+        assert!(unknown.contains("bogus"), "unexpected message: {unknown}");
+
+        let empty = parse_sections("").unwrap_err();
+        assert!(
+            empty.contains("at least one"),
+            "unexpected message: {empty}"
+        );
+
+        let commas = parse_sections(", ,").unwrap_err();
+        assert!(
+            commas.contains("at least one"),
+            "unexpected message: {commas}"
+        );
+    }
+
+    #[test]
+    fn parse_sections_defaults_to_everything() {
+        let Command::Analyze { sections, .. } = parsed_command(&["analyze", "a/b"]) else {
+            panic!("expected analyze");
+        };
+        assert_eq!(sections, AnalyzeSections::all());
+
+        let Command::Analyze { sections, .. } =
+            parsed_command(&["analyze", "a/b", "--sections", "info"])
+        else {
+            panic!("expected analyze");
+        };
+        assert!(sections.info);
+        assert!(!sections.structure);
+        assert!(!sections.needs_stats());
+    }
+
+    #[test]
+    fn analyze_help_documents_the_sections_flag() {
+        let spec = spec_by_name("analyze").unwrap();
+        assert!(
+            spec.usage.contains("--sections string"),
+            "usage missing --sections: {}",
             spec.usage
         );
     }

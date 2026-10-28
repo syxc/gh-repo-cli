@@ -25,6 +25,12 @@ CARGO_RUSTC_WRAPPER= cargo clippy --all-targets --all-features --locked -- -D wa
 
 Judge clippy by its EXIT CODE, never by grepping the output: shell wrappers on this machine (rtk shim, kache) reformat and summarize clippy results, so text-based checks undercount. Both misses in October 2026 (unreadable_literal, map_unwrap_or) were visible locally but read as clean through output parsing.
 
+`cfg`-gated code is invisible to a host-only clippy run (the `similar_names` hit in the Linux-only gsettings path passed on macOS). Lint the CI target too:
+
+```bash
+CARGO_RUSTC_WRAPPER= cargo clippy --target aarch64-unknown-linux-musl --all-targets --all-features --locked -- -D warnings
+```
+
 ## Layout
 
 | File | Responsibility |

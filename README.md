@@ -35,6 +35,7 @@ cargo install --path .
 ```bash
 ghr analyze facebook/react              # languages, file types, structure
 ghr analyze facebook/react --depth 3    # deeper structure tree (default 2)
+ghr analyze facebook/react --sections languages   # only the language table
 ghr structure vuejs/core --depth 2      # directory tree (depth defaults to 3)
 ghr search facebook/react useState -e .js
 ghr search facebook/react types --ignore-case
@@ -51,7 +52,7 @@ ghr clean                               # show usage plus cache statistics
 Details worth knowing:
 
 - `search` takes a regular expression. The table shows at most 50 rows; `-o` always saves the full result set. Binary files (a NUL byte in the first 8 KiB) are skipped.
-- `-o <file>` writes JSON (created directories included) for `analyze`, `structure` and `search`.
+- `-o <file>` writes JSON (created directories included) for `analyze`, `structure` and `search`. With `--sections`, `analyze` writes only the selected sections.
 - `--no-cache` re-clones instead of updating the cached copy.
 - `read` prints the file content; for a missing file it lists the parent directory so you can pick the right path.
 
@@ -63,7 +64,7 @@ The proxy is resolved on every invocation, so a proxy that changes on your syste
 2. `HTTPS_PROXY` / `https_proxy`
 3. `HTTP_PROXY` / `http_proxy`
 4. `ALL_PROXY` / `all_proxy`
-5. OS settings: `scutil --proxy` on macOS, GNOME `gsettings` on Linux, the registry on Windows
+5. OS settings: `scutil --proxy` on macOS, GNOME `gsettings` on Linux, the registry on Windows. HTTP(S) proxies are preferred; a SOCKS-only configuration is used as `socks5h://` (remote DNS)
 
 ```bash
 GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # temporary override
