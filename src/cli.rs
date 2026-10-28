@@ -560,17 +560,27 @@ fn parse_root_command(args: &[String]) -> Parsed {
             }
             let (name, inline) = split_inline(long);
             match name {
-                "help" => help = true,
-                "version" => version = true,
-                "no-cache" => match bool_value(inline, &NO_CACHE_FLAG) {
-                    Ok(_) => {}
-                    Err(message) => {
-                        return Parsed::Failure {
-                            message,
-                            usage: ROOT_USAGE_FULL,
-                        };
+                "help" | "version" | "no-cache" => {
+                    let display = match name {
+                        "help" => HELP_FLAG.display,
+                        "version" => "-v, --version",
+                        _ => NO_CACHE_FLAG.display,
+                    };
+                    let value = match bool_value(inline, display) {
+                        Ok(value) => value,
+                        Err(message) => {
+                            return Parsed::Failure {
+                                message,
+                                usage: ROOT_USAGE_FULL,
+                            };
+                        }
+                    };
+                    match name {
+                        "help" => help = value,
+                        "version" => version = value,
+                        _ => {}
                     }
-                },
+                }
                 _ => {
                     return Parsed::Failure {
                         message: format!("unknown flag: --{name}"),
@@ -581,17 +591,31 @@ fn parse_root_command(args: &[String]) -> Parsed {
         } else if arg.len() > 1 && arg.starts_with('-') {
             let mut rest = &arg[1..];
             while let Some(short) = rest.chars().next() {
-                match short {
-                    'h' => help = true,
-                    'v' => version = true,
+                let (target, display) = match short {
+                    'h' => (&mut help, HELP_FLAG.display),
+                    'v' => (&mut version, "-v, --version"),
                     _ => {
                         return Parsed::Failure {
                             message: format!("unknown shorthand flag: '{short}' in -{rest}"),
                             usage: ROOT_USAGE_FULL,
                         };
                     }
+                };
+                let remainder = &rest[short.len_utf8()..];
+                let inline = remainder.strip_prefix('=');
+                match bool_value(inline, display) {
+                    Ok(value) => *target = value,
+                    Err(message) => {
+                        return Parsed::Failure {
+                            message,
+                            usage: ROOT_USAGE_FULL,
+                        };
+                    }
                 }
-                rest = &rest[short.len_utf8()..];
+                if inline.is_some() {
+                    break;
+                }
+                rest = remainder;
             }
         }
         // Anything else is a positional argument; the root command ignores it.
@@ -751,23 +775,23 @@ fn apply_flag(
 
     match def.kind {
         FlagKind::Help => {
-            *help = true;
+            *help = bool_value(inline, def.display).map_err(flagged)?;
             Ok(false)
         }
         FlagKind::NoCache => {
-            *no_cache = bool_value(inline, def).map_err(flagged)?;
+            *no_cache = bool_value(inline, def.display).map_err(flagged)?;
             Ok(false)
         }
         FlagKind::IgnoreCase => {
-            flags.ignore_case = bool_value(inline, def).map_err(flagged)?;
+            flags.ignore_case = bool_value(inline, def.display).map_err(flagged)?;
             Ok(false)
         }
         FlagKind::All => {
-            flags.all = bool_value(inline, def).map_err(flagged)?;
+            flags.all = bool_value(inline, def.display).map_err(flagged)?;
             Ok(false)
         }
         FlagKind::OutputBool => {
-            flags.output_dir = bool_value(inline, def).map_err(flagged)?;
+            flags.output_dir = bool_value(inline, def.display).map_err(flagged)?;
             Ok(false)
         }
         FlagKind::OutputStr => {
@@ -828,14 +852,15 @@ fn apply_short_cluster(
 
         let remainder = &rest[short.len_utf8()..];
         match def.kind {
-            FlagKind::Help => {
-                *help = true;
-                rest = remainder;
-            }
-            FlagKind::NoCache | FlagKind::IgnoreCase | FlagKind::All | FlagKind::OutputBool => {
+            FlagKind::Help
+            | FlagKind::NoCache
+            | FlagKind::IgnoreCase
+            | FlagKind::All
+            | FlagKind::OutputBool => {
                 let inline = remainder.strip_prefix('=');
-                let value = bool_value(inline, def).map_err(flagged)?;
+                let value = bool_value(inline, def.display).map_err(flagged)?;
                 match def.kind {
+                    FlagKind::Help => *help = value,
                     FlagKind::NoCache => *no_cache = value,
                     FlagKind::IgnoreCase => flags.ignore_case = value,
                     FlagKind::All => flags.all = value,
@@ -917,15 +942,14 @@ fn flag_value(
     }
 }
 
-fn bool_value(inline: Option<&str>, def: &FlagDef) -> Result<bool, String> {
+fn bool_value(inline: Option<&str>, display: &str) -> Result<bool, String> {
     let Some(raw) = inline else {
         return Ok(true);
     };
 
     parse_bool(raw).ok_or_else(|| {
         format!(
-            "invalid argument \"{raw}\" for \"{}\" flag: strconv.ParseBool: parsing \"{raw}\": invalid syntax",
-            def.display
+            "invalid argument \"{raw}\" for \"{display}\" flag: strconv.ParseBool: parsing \"{raw}\": invalid syntax"
         )
     })
 }
@@ -1179,10 +1203,10 @@ fn parse_int_base0(raw: &str) -> Result<i64, &'static str> {
     };
 
     let (base, digits, base_prefixed) = if digits.len() >= 3 {
-        match &digits[..2] {
-            "0x" | "0X" => (16u32, &digits[2..], true),
-            "0o" | "0O" => (8, &digits[2..], true),
-            "0b" | "0B" => (2, &digits[2..], true),
+        match digits.get(..2) {
+            Some("0x" | "0X") => (16u32, &digits[2..], true),
+            Some("0o" | "0O") => (8, &digits[2..], true),
+            Some("0b" | "0B") => (2, &digits[2..], true),
             _ if digits.starts_with('0') => (8, &digits[1..], true),
             _ => (10, digits, false),
         }
@@ -1353,6 +1377,42 @@ mod tests {
             failure_message(&["structure", "x", "-d", "99999999999999999999"]),
             "invalid argument \"99999999999999999999\" for \"-d, --depth\" flag: strconv.ParseInt: parsing \"99999999999999999999\": value out of range"
         );
+    }
+
+    #[test]
+    fn regression_depth_rejects_non_ascii_without_panicking() {
+        for raw in ["中", "1é", "🦀", "-中", "+é1"] {
+            assert_eq!(parse_int_base0(raw), Err("invalid syntax"));
+            assert!(
+                failure_message(&["structure", "a/b", "--depth", raw]).ends_with("invalid syntax")
+            );
+        }
+    }
+
+    #[test]
+    fn regression_help_flags_honor_explicit_boolean_values() {
+        for flag in ["--help=false", "-h=false", "--help=0", "-h=0"] {
+            assert!(matches!(
+                parsed_command(&["analyze", "a/b", flag]),
+                Command::Analyze { .. }
+            ));
+        }
+        for flag in ["--help=maybe", "-h=maybe"] {
+            assert!(failure_message(&["analyze", "a/b", flag]).contains("strconv.ParseBool"));
+        }
+    }
+
+    #[test]
+    fn regression_root_boolean_flags_validate_and_honor_values() {
+        for flag in ["--version=false", "-v=false", "--version=0", "-v=0"] {
+            assert!(matches!(parse(&[flag.to_owned()]), Parsed::Help(_)));
+        }
+        for flag in ["--version=maybe", "-v=maybe", "--help=maybe", "-h=maybe"] {
+            assert!(failure_message(&[flag]).contains("strconv.ParseBool"));
+        }
+        for flag in ["--version=true", "-v=true"] {
+            assert!(matches!(parse(&[flag.to_owned()]), Parsed::Version));
+        }
     }
 
     #[test]

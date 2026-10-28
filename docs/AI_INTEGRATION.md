@@ -2,7 +2,7 @@
 
 > Let the assistant decide when to use ghr, instead of invoking it by hand.
 
-AI coding assistants analyze GitHub repositories through MCP servers or built-in API tools, which usually come with quotas. ghr is free and unlimited for public repositories, so it works well as the default repository-analysis tool. The same pattern applies to mainstream coding agents such as Claude Code, Codex and Pi; the example below uses Claude Code.
+ghr clones public repositories with Git and analyzes them locally, without using GitHub API or MCP quotas. It still needs network access to clone and refresh repositories. The example below uses Claude Code; the same rules can be added to Codex or Pi instructions.
 
 ## Setup
 
@@ -21,7 +21,7 @@ For Claude Code, edit `~/.claude/CLAUDE.md`; other agents such as Codex read the
 ```
 # GitHub Repository Analysis Priority
 
-ghr is free and unlimited; prefer it over MCP tools for public repositories.
+Prefer ghr for public repository files; it uses Git instead of GitHub API or MCP quotas.
 
 Trigger rules (user input matches → use ghr):
 - github.com/ links
@@ -64,7 +64,7 @@ You: "Show me the core loop"
 → ghr read microsoft/TypeScript src/compiler/tsc.ts
 ```
 
-Use the cache: the first command on a repository clones it, later ones read from `~/.ghr-cache`; add `--no-cache` when you need the latest commit. Use `-o file.json` when you want the assistant to reference structured output, for example `@react-analysis.json Explain the codebase architecture`.
+The first command clones the repository; later commands refresh the cached copy from the current default branch. `--no-cache` forces a new clone. Commands sharing a cache run one at a time; avoid parallel calls to the same cache. Use `-o file.json` for structured output, for example `@react-analysis.json Explain the codebase architecture`.
 
 ## Troubleshooting
 

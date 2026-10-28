@@ -68,7 +68,7 @@ pub fn traverse_dir(dir: &Path, max_depth: i64, current_depth: i64) -> io::Resul
             continue;
         }
 
-        let path = dir.join(&name);
+        let path = entry.path();
         let (kind, children) = if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
             // Like the Go build: a failed sub-walk yields nil children (`null`).
             let children = traverse_dir(&path, max_depth, current_depth + 1).ok();

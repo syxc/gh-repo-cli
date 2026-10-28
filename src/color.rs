@@ -33,6 +33,21 @@ pub fn bold(text: &str) -> String {
     styled(colors_disabled(), "1", "22", text)
 }
 
+/// Makes untrusted single-line content safe before adding terminal styling.
+/// Ordinary Unicode stays intact; C0/C1 controls and DEL become visible escapes.
+pub fn escape_controls(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for character in text.chars() {
+        if character.is_control() {
+            escaped.extend(character.escape_default());
+        } else {
+            escaped.push(character);
+        }
+    }
+
+    escaped
+}
+
 fn styled(disabled: bool, code: &str, reset: &str, text: &str) -> String {
     if disabled {
         return text.to_owned();
@@ -58,6 +73,14 @@ fn non_empty_env(key: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn escape_controls_preserves_unicode_and_escapes_c0_c1_and_del() {
+        assert_eq!(
+            escape_controls("中文📁\u{1b}\u{7}\u{7f}\u{9b}\n\r\t"),
+            "中文📁\\u{1b}\\u{7}\\u{7f}\\u{9b}\\n\\r\\t"
+        );
+    }
 
     #[test]
     fn styled_keeps_plain_text_when_colors_are_disabled() {

@@ -17,6 +17,21 @@ use crate::output;
 use crate::search::{self, SearchOptions};
 
 pub fn run(command: Command, config: &Config, no_cache: bool) -> Result<(), String> {
+    let repo = match &command {
+        Command::Analyze { repo, .. }
+        | Command::Structure { repo, .. }
+        | Command::Search { repo, .. }
+        | Command::Read { repo, .. }
+        | Command::Ls { repo, .. }
+        | Command::Readme { repo } => Some(repo.as_str()),
+        Command::Clean { repo, .. } => repo.as_deref(),
+    };
+    if let Some(repo) = repo {
+        git::parse_repo(repo).map_err(|err| report(&err))?;
+    }
+    let _cache_lock = cache::CacheLock::acquire(&config.cache_dir)
+        .map_err(|err| report(&fsutil::describe_io(&err, "lock", &config.cache_dir)))?;
+
     match command {
         Command::Analyze {
             repo,
@@ -107,7 +122,7 @@ fn analyze(
         output::print_header("📁 Repository Info");
         println!("   Name: {repo}");
         if let Some(info) = &info {
-            println!("   Last Update: {}", info.date);
+            println!("   Last Update: {}", color::escape_controls(&info.date));
             println!(
                 "   Commit: {}",
                 info.commit.chars().take(7).collect::<String>()
@@ -258,17 +273,22 @@ fn search_command(
 
 fn read(repo: &str, file: &str, config: &Config, no_cache: bool) -> Result<(), String> {
     let repo_path = clone_or_report(repo, config, no_cache)?;
-    let full_path = join_repo_path(&repo_path, file);
+    let full_path = join_repo_path(&repo_path, file).map_err(|err| report(&err))?;
 
     let content = match fsutil::read_file_content(&full_path) {
         Ok(content) => content,
         Err(err) => {
             output::print_error(&format!("File not found: {file}\n"));
             println!("{}", color::gray("Available files in this directory:\n"));
-            if let Some(parent) = full_path.parent() {
-                if let Ok(items) = fsutil::traverse_dir(parent, 1, 0) {
+            if let Ok(root) = repo_path.canonicalize() {
+                let parent = full_path
+                    .parent()
+                    .and_then(|parent| parent.canonicalize().ok())
+                    .filter(|parent| parent.starts_with(&root))
+                    .unwrap_or(root);
+                if let Ok(items) = fsutil::traverse_dir(&parent, 1, 0) {
                     for item in &items {
-                        println!("  {}", item.name);
+                        println!("  {}", color::escape_controls(&item.name));
                     }
                 }
             }
@@ -278,7 +298,7 @@ fn read(repo: &str, file: &str, config: &Config, no_cache: bool) -> Result<(), S
 
     println!("{}", color::blue(&format!("\n📄 {file}\n")));
     output::print_separator(80);
-    println!("{content}");
+    println!("{}", escape_file_content(&content));
     output::print_separator(80);
 
     Ok(())
@@ -288,7 +308,7 @@ fn ls(repo: &str, path: &str, depth: i64, config: &Config, no_cache: bool) -> Re
     println!("{}", color::blue(&format!("\n📂 Listing {repo}:{path}\n")));
 
     let repo_path = clone_or_report(repo, config, no_cache)?;
-    let full_path = join_repo_path(&repo_path, path);
+    let full_path = join_repo_path(&repo_path, path).map_err(|err| report(&err))?;
     let items = fsutil::traverse_dir(&full_path, depth, 0)
         .map_err(|err| report(&fsutil::traverse_error(&err, &full_path)))?;
 
@@ -302,7 +322,7 @@ fn ls(repo: &str, path: &str, depth: i64, config: &Config, no_cache: bool) -> Re
             Kind::Directory => "📁",
             Kind::File => "📄",
         };
-        println!("  {icon} {}", item.name);
+        println!("  {icon} {}", color::escape_controls(&item.name));
     }
     println!();
 
@@ -340,7 +360,7 @@ fn readme(repo: &str, config: &Config, no_cache: bool) -> Result<(), String> {
     println!("{}", color::bold(&name));
     println!();
     output::print_separator(80);
-    println!("{content}");
+    println!("{}", escape_file_content(&content));
     output::print_separator(80);
 
     Ok(())
@@ -348,10 +368,13 @@ fn readme(repo: &str, config: &Config, no_cache: bool) -> Result<(), String> {
 
 fn find_readme(repo_path: &Path, sub_dir: &str) -> Option<(String, String)> {
     for name in README_NAMES {
-        let path = if sub_dir.is_empty() {
-            repo_path.join(name)
+        let sub = if sub_dir.is_empty() {
+            name.to_owned()
         } else {
-            repo_path.join(sub_dir).join(name)
+            format!("{sub_dir}/{name}")
+        };
+        let Ok(path) = join_repo_path(repo_path, &sub) else {
+            continue;
         };
         if let Ok(content) = fsutil::read_file_content(&path) {
             let label = if sub_dir.is_empty() {
@@ -386,12 +409,9 @@ fn clean(
         None => None,
     };
     if let Some(max_age) = max_age {
-        return clean_stale(config, max_age);
-    }
-
-    if let Some(repo) = repo {
-        let (owner, name) = git::parse_repo(repo).map_err(|err| report(&err))?;
-        let repo_path = config.cache_dir.join(owner).join(name);
+        clean_stale(config, max_age)?;
+    } else if let Some(repo) = repo {
+        let repo_path = cache::repo_path(&config.cache_dir, repo).map_err(|err| report(&err))?;
 
         if repo_path.exists() {
             remove_and_report(&repo_path, &format!("✅ Cleaned cache for {repo}"))?;
@@ -402,14 +422,25 @@ fn clean(
             );
         }
     } else if all {
-        if config.cache_dir.exists() {
-            let size = fsutil::directory_size(&config.cache_dir);
-            remove_and_report(
-                &config.cache_dir,
-                &format!("✅ Cleaned all cache ({})", fsutil::format_bytes(size)),
-            )?;
-        } else {
+        let entries = cache::scan(&config.cache_dir);
+        if entries.is_empty() {
             println!("{}", color::yellow("⚠️  No cache found"));
+        } else {
+            let mut size = 0;
+            for entry in entries {
+                let path =
+                    cache::repo_path(&config.cache_dir, &entry.name).map_err(|err| report(&err))?;
+                size += fsutil::directory_size(&path);
+                std::fs::remove_dir_all(&path)
+                    .map_err(|err| report(&fsutil::describe_io(&err, "remove", &path)))?;
+            }
+            println!(
+                "{}",
+                color::green(&format!(
+                    "✅ Cleaned all cache ({})",
+                    fsutil::format_bytes(size)
+                ))
+            );
         }
     } else {
         println!(
@@ -450,6 +481,7 @@ fn clean_stale(config: &Config, max_age: std::time::Duration) -> Result<(), Stri
 
     let mut total = 0;
     for entry in &stale {
+        cache::repo_path(&config.cache_dir, &entry.name).map_err(|err| report(&err))?;
         let size = fsutil::directory_size(&entry.path);
         total += size;
         remove_and_report(
@@ -507,13 +539,13 @@ fn remove_and_report(path: &Path, success_message: &str) -> Result<(), String> {
 }
 
 fn clone_or_report(repo: &str, config: &Config, no_cache: bool) -> Result<PathBuf, String> {
+    cache::repo_path(&config.cache_dir, repo).map_err(|err| report(&err))?;
     auto_clean_cache(config, repo);
     git::clone_repo(repo, &config.cache_dir, &config.proxy, no_cache).map_err(|err| report(&err))
 }
 
-/// Opt-in LRU-style retention: when `GH_CACHE_MAX_AGE` is set (e.g. `30d`),
-/// cached repositories unused for that long are evicted before every
-/// clone/fetch, keeping the cache bounded without a separate command.
+/// Opt-in retention removes unused repositories before clone/fetch.
+/// The caller holds the cache lock throughout cleanup and repository use.
 fn auto_clean_cache(config: &Config, current: &str) {
     let Some(raw) = std::env::var_os("GH_CACHE_MAX_AGE") else {
         return;
@@ -526,15 +558,21 @@ fn auto_clean_cache(config: &Config, current: &str) {
     match cache::parse_duration(&raw) {
         Ok(max_age) => {
             for entry in cache::stale_entries(&config.cache_dir, max_age, Some(current)) {
-                let _ = std::fs::remove_dir_all(&entry.path);
-                println!(
-                    "{}",
-                    color::green(&format!(
-                        "✅ Auto-cleaned cache for {} (unused {})",
-                        entry.name,
-                        cache::format_age(entry.age())
-                    ))
-                );
+                let result = cache::repo_path(&config.cache_dir, &entry.name).and_then(|path| {
+                    std::fs::remove_dir_all(&path)
+                        .map_err(|err| fsutil::describe_io(&err, "remove", &path))
+                });
+                match result {
+                    Ok(()) => println!(
+                        "{}",
+                        color::green(&format!(
+                            "✅ Auto-cleaned cache for {} (unused {})",
+                            entry.name,
+                            cache::format_age(entry.age())
+                        ))
+                    ),
+                    Err(message) => eprintln!("Warning: failed to clean {}: {message}", entry.name),
+                }
             }
         }
         Err(message) => println!(
@@ -552,28 +590,51 @@ fn report<E: ToString>(err: &E) -> String {
     message
 }
 
+fn escape_file_content(content: &str) -> String {
+    let mut escaped = String::with_capacity(content.len());
+    for ch in content.chars() {
+        if ch.is_control() && !matches!(ch, '\n' | '\r' | '\t') {
+            escaped.extend(ch.escape_default());
+        } else {
+            escaped.push(ch);
+        }
+    }
+    escaped
+}
+
 fn non_empty(value: Option<&str>) -> Option<&str> {
     value.filter(|value| !value.is_empty())
 }
 
-/// Mirrors Go's `filepath.Join`: appends `sub` to `base` and cleans the
-/// result lexically ("." and empty segments drop, ".." pops one segment).
-fn join_repo_path(base: &Path, sub: &str) -> PathBuf {
-    let mut parts: Vec<String> = base
-        .iter()
-        .map(|segment| segment.to_string_lossy().into_owned())
-        .collect();
-    for segment in sub.split('/') {
-        match segment {
-            "" | "." => {}
-            ".." => {
-                parts.pop();
+/// Keeps normalized paths and symlink targets within the repository.
+fn join_repo_path(base: &Path, sub: &str) -> Result<PathBuf, String> {
+    let invalid = || format!("path is outside the repository: {sub}");
+    let mut relative = PathBuf::new();
+    for component in Path::new(sub).components() {
+        match component {
+            std::path::Component::Normal(part) => relative.push(part),
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir if relative.pop() => {}
+            _ => return Err(invalid()),
+        }
+    }
+    let root = base
+        .canonicalize()
+        .map_err(|err| fsutil::describe_io(&err, "open", base))?;
+    let path = root.join(relative);
+    let mut existing = path.as_path();
+    loop {
+        match existing.canonicalize() {
+            Ok(resolved) if resolved.starts_with(&root) => break,
+            Ok(_) => return Err(invalid()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                existing = existing.parent().ok_or_else(invalid)?;
             }
-            other => parts.push(other.to_owned()),
+            Err(err) => return Err(fsutil::describe_io(&err, "open", existing)),
         }
     }
 
-    parts.into_iter().collect()
+    Ok(path)
 }
 
 fn sorted_by_count(counts: &HashMap<String, i64>) -> Vec<(String, i64)> {
@@ -626,6 +687,14 @@ fn truncate_chars(text: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_content_escapes_terminal_controls_and_keeps_text_layout() {
+        assert_eq!(
+            escape_file_content("a\n\tb\r\n\u{1b}]52;c;payload\u{7}"),
+            "a\n\tb\r\n\\u{1b}]52;c;payload\\u{7}"
+        );
+    }
 
     #[test]
     fn sorted_by_count_orders_values_descending_with_key_tiebreak() {

@@ -28,7 +28,11 @@ jobs:
       run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -41,6 +45,21 @@ jobs:
 
     - name: Run tests
       run: cargo test --locked
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Rust 1.85
+      uses: dtolnay/rust-toolchain@1.85.0
+
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
+
+    - name: Check MSRV
+      run: cargo check --all-targets --all-features --locked
 
   build:
     runs-on: ${{ matrix.os }}

@@ -124,11 +124,7 @@ fn detect_system_proxy() -> String {
 fn gsettings_proxy_url(schema: &str, protocol: &str) -> Option<String> {
     let host = gsettings_value(schema, "host")?;
     let port = gsettings_value(schema, "port")?;
-    if host.is_empty() || port.is_empty() {
-        return None;
-    }
-
-    Some(format!("{protocol}://{host}:{port}"))
+    system_proxy_url(&host, &port, protocol)
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -221,8 +217,28 @@ fn reg_query(key: &str, value: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// A flat `<dictionary>` as printed by `scutil --proxy`, with `Key : value`
-/// lines.
+#[cfg(unix)]
+fn system_proxy_url(host: &str, port: &str, scheme: &str) -> Option<String> {
+    let host = host.trim();
+    let port = port.trim().parse::<u16>().ok().filter(|port| *port != 0)?;
+    if host.is_empty() {
+        return None;
+    }
+
+    let host = host
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or(host);
+    if host.contains(':') {
+        let address = host.parse::<std::net::Ipv6Addr>().ok()?;
+        return Some(format!("{scheme}://[{address}]:{port}"));
+    }
+
+    Some(format!("{scheme}://{host}:{port}"))
+}
+
+/// Top-level fields from `scutil --proxy`; scoped dictionaries apply only to
+/// their associated interface and must not overwrite the global settings.
 #[cfg(target_os = "macos")]
 struct ScutilDict<'a> {
     fields: std::collections::HashMap<&'a str, &'a str>,
@@ -231,11 +247,23 @@ struct ScutilDict<'a> {
 #[cfg(target_os = "macos")]
 impl<'a> ScutilDict<'a> {
     fn parse(text: &'a str) -> Self {
-        let fields = text
-            .lines()
-            .filter_map(|line| line.split_once(" : "))
-            .map(|(key, value)| (key.trim(), value.trim()))
-            .collect();
+        let mut fields = std::collections::HashMap::new();
+        let mut depth: usize = 0;
+        for line in text.lines().map(str::trim) {
+            if line == "}" {
+                depth = depth.saturating_sub(1);
+                continue;
+            }
+            if line.ends_with("<dictionary> {") || line.ends_with("<array> {") {
+                depth += 1;
+                continue;
+            }
+            if depth == 1 {
+                if let Some((key, value)) = line.split_once(" : ") {
+                    fields.insert(key.trim(), value.trim());
+                }
+            }
+        }
 
         Self { fields }
     }
@@ -247,11 +275,7 @@ impl<'a> ScutilDict<'a> {
     fn proxy_url(&self, proxy_key: &str, port_key: &str, scheme: &str) -> Option<String> {
         let host = self.fields.get(proxy_key)?;
         let port = self.fields.get(port_key)?;
-        if host.is_empty() || port.is_empty() {
-            return None;
-        }
-
-        Some(format!("{scheme}://{host}:{port}"))
+        system_proxy_url(host, port, scheme)
     }
 }
 
@@ -376,6 +400,48 @@ mod tests {
             Some("http://10.0.0.1:8080".to_owned())
         );
         assert_eq!(parse_windows_proxy_server(""), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regression_system_proxy_rejects_invalid_ports() {
+        for port in ["0", "-1", "65536", "invalid"] {
+            assert_eq!(system_proxy_url("localhost", port, "http"), None);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regression_system_proxy_brackets_ipv6_hosts() {
+        for host in ["::1", "[::1]"] {
+            assert_eq!(
+                system_proxy_url(host, "1080", "socks5h"),
+                Some("socks5h://[::1]:1080".to_owned())
+            );
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn regression_scutil_ignores_scoped_proxy_overrides() {
+        let sample = "<dictionary> {
+  HTTPSEnable : 1
+  HTTPSProxy : global.example
+  HTTPSPort : 8080
+  __SCOPED__ : <dictionary> {
+    en0 : <dictionary> {
+      HTTPSEnable : 1
+      HTTPSProxy : scoped.example
+      HTTPSPort : 9999
+    }
+  }
+}";
+        let dict = ScutilDict::parse(sample);
+
+        assert_eq!(
+            dict.proxy_url("HTTPSProxy", "HTTPSPort", "http"),
+            Some("http://global.example:8080".to_owned())
+        );
     }
 
     #[cfg(target_os = "macos")]

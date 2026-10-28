@@ -16,7 +16,7 @@ ghr 用 `git` 克隆仓库并在本地完成分析：语言统计、文件类型
 ```bash
 # macOS ARM64；请替换 <version> 与平台（见 releases 页面）
 curl -LO "https://github.com/syxc/gh-repo-cli/releases/latest/download/ghr_<version>_darwin_arm64.tar.gz"
-tar -xzf ghr_<version>_darwin_arm64.tar.gz
+tar -xzf "ghr_<version>_darwin_arm64.tar.gz"
 sudo mv ghr /usr/local/bin/
 ```
 
@@ -44,17 +44,19 @@ ghr ls facebook/react src               # 深度默认 1
 ghr readme facebook/react
 
 ghr clean facebook/react                # 删除单个缓存仓库
-ghr clean --all                         # 清空缓存
+ghr clean --all                         # 删除可识别的缓存仓库
 ghr clean --old 30d                     # 清理超过 30 天未使用的仓库
 ghr clean                               # 显示用法与缓存统计
 ```
 
 需要注意的行为：
 
-- `search` 接受正则表达式。表格最多显示 50 条；`-o` 始终保存完整结果。二进制文件（前 8 KiB 含 NUL 字节）会被跳过。
-- `analyze`、`structure`、`search` 支持 `-o <file>` 输出 JSON（自动创建目录）；`analyze` 配合 `--sections` 时只写入所选部分。
-- `--no-cache` 重新克隆，而不是更新缓存副本。
-- `read` 输出文件内容；文件不存在时会列出其父目录内容，便于找到正确路径。
+- `search` 接受 Rust 正则表达式。表格最多显示 50 条；`-o` 保存全部匹配，无匹配时不写文件。二进制文件（前 8 KiB 含 NUL 字节）会被跳过。
+- `analyze` 统计根目录及下一层目录中的文件（深度 2），表格和 JSON 均只保留前 10 种语言和文件类型；`--depth` 只改变结构树。
+- `analyze`、`structure`、`search` 支持 `-o <file>` 输出 JSON，并按需创建父目录。`analyze --sections` 可选择 `info`、`languages`、`file-types`、`structure`；JSON 中 `file-types` 对应 `fileTypes`，且始终保留 `repo`。
+- `--no-cache` 强制重新克隆。普通刷新失败时返回错误并保留原缓存。
+- 命令参数须为有效 UTF-8。仓库内容中的终端控制字符会转义，正常换行和制表符保留。
+- `read` 输出文件内容，文件不存在时列出父目录，便于找到正确路径。`read`、`ls`、`search`、`readme` 的文件访问限于仓库内，符号链接的目标也受此限制。
 
 ## 代理
 
@@ -72,17 +74,18 @@ GH_PROXY="http://127.0.0.1:7890" ghr analyze facebook/react   # 临时覆盖
 
 ## 缓存与输出
 
-仓库缓存在 `~/.ghr-cache/<owner>/<repo>`，`ghr clean` 用于删除其中的条目。`~/.ghr-output/` 仅被 `ghr clean -o` 使用（整体删除）；`-o` 本身始终写入你指定的路径。
+仓库缓存在 `~/.ghr-cache/<owner>/<repo>`，可用 `GH_CACHE_DIR` 更换位置；已有目录须为空或可识别的 ghr 缓存。同一缓存根目录下的命令串行执行，等待锁最多 30 秒。
 
-长期使用的缓存不会失控膨胀。缓存位置可用 `GH_CACHE_DIR` 重定向（默认 `~/.ghr-cache`）：
-
-- 克隆是浅克隆且只取默认分支的最新提交（`--depth 1 --single-branch`）；每次刷新会过期 reflog 并修剪被替换的对象，缓存仓库不会随时间增大。
-- LRU 式保留策略：每次使用仓库都会刷新其"最近使用"标记。`ghr clean --old 30d` 逐出超过 30 天未使用的仓库；裸 `ghr clean` 会显示缓存大小与最旧条目作为提醒。
-- 自动逐出：设置 `GH_CACHE_MAX_AGE`（格式相同，如 `30d`），ghr 在每次调用访问缓存前自动清理过期仓库：
+- 克隆深度为 1。每次刷新以深度 1 获取当前默认分支，不获取标签，再运行 `git gc --auto`，保留 Git 的正常到期策略。缓存大小仍会随仓库内容和保留对象增长。
+- 清理只删除已确认的 GitHub 仓库目录，保留缓存根目录和无关文件；拒绝 owner/repo 路径上的符号链接。
+- `ghr clean --old 30d` 删除至少 30 天未使用的仓库；裸 `ghr clean` 显示缓存大小与最旧条目。每次成功使用都会刷新最近使用标记。
+- 设置 `GH_CACHE_MAX_AGE`（如 `30d`），在克隆或刷新仓库前清理过期仓库，保留当前使用的仓库：
 
   ```bash
   export GH_CACHE_MAX_AGE=30d
   ```
+
+`-o <file>` 写入指定路径；`ghr clean -o` 删除 `~/.ghr-output/`，不会追踪这些输出文件。
 
 ## 文档
 

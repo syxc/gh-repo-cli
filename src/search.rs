@@ -38,7 +38,9 @@ pub fn search_files(
     let regex = Regex::new(&pattern)?;
 
     let mut results = Vec::new();
-    walk(dir, dir, &regex, options, &mut results);
+    if let Ok(root) = dir.canonicalize() {
+        walk(&root, &root, &regex, options, &mut results);
+    }
 
     Ok(results)
 }
@@ -62,7 +64,7 @@ fn walk(
             continue;
         }
 
-        let path = dir.join(&name);
+        let path = entry.path();
         let Ok(file_type) = entry.file_type() else {
             continue;
         };
@@ -79,7 +81,20 @@ fn walk(
             continue;
         }
 
-        let Ok(bytes) = std::fs::read(&path) else {
+        let read_path = if file_type.is_symlink() {
+            let Ok(target) = path.canonicalize() else {
+                continue;
+            };
+            if !target.starts_with(root) || !target.is_file() {
+                continue;
+            }
+            target
+        } else if file_type.is_file() {
+            path.clone()
+        } else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&read_path) else {
             continue;
         };
         // NUL sniff like grep: binary files only produce mojibake matches.
@@ -284,6 +299,56 @@ mod tests {
         assert_eq!(files, vec!["real.txt"]);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regression_search_skips_links_outside_the_repository() {
+        let sandbox = temp_dir("symlink-boundary");
+        let repo = sandbox.join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        std::fs::write(sandbox.join("outside.txt"), "synthetic-secret").unwrap();
+        std::fs::write(repo.join("inside.txt"), "synthetic-secret").unwrap();
+        std::os::unix::fs::symlink("../outside.txt", repo.join("link.txt")).unwrap();
+
+        let results = search(&repo, "synthetic-secret", &SearchOptions::default());
+        let files: Vec<&str> = results.iter().map(|result| result.file.as_str()).collect();
+
+        assert_eq!(files, vec!["inside.txt"]);
+        std::fs::remove_dir_all(sandbox).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn regression_search_preserves_links_to_repository_files() {
+        let dir = temp_dir("internal-symlink");
+        std::fs::write(dir.join("original.txt"), "needle").unwrap();
+        std::os::unix::fs::symlink("original.txt", dir.join("link.txt")).unwrap();
+
+        let results = search(&dir, "needle", &SearchOptions::default());
+        let files: Vec<&str> = results.iter().map(|result| result.file.as_str()).collect();
+
+        assert_eq!(files, vec!["link.txt", "original.txt"]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    #[test]
+    fn regression_search_opens_original_non_utf8_paths() {
+        use std::os::unix::ffi::OsStrExt;
+
+        let dir = temp_dir("non-utf8");
+        let original_name = std::ffi::OsStr::from_bytes(b"bad\xff.rs");
+        std::fs::write(dir.join(original_name), "original-needle").unwrap();
+        std::fs::write(dir.join("bad\u{fffd}.rs"), "replacement-needle").unwrap();
+
+        let original = search(&dir, "original-needle", &SearchOptions::default());
+        let replacement = search(&dir, "replacement-needle", &SearchOptions::default());
+
+        assert_eq!(original.len(), 1);
+        assert_eq!(original[0].text, "original-needle");
+        assert_eq!(replacement.len(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
